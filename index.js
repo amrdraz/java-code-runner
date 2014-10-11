@@ -39,7 +39,7 @@ function startServlet() {
     getPort(function(port) {
         servletPort = global._servletPort = '' + port;
 
-        servlet = global._servlet = cp.spawn('java', ['-cp', '.:temp:servlet-api-2.5.jar:jetty-all-7.0.2.v20100331.jar', 'RunnerServlet', servletPort], {
+        servlet = global._servlet = cp.spawn('java', ['-cp', '.:servlet-api-2.5.jar:jetty-all-7.0.2.v20100331.jar', 'RunnerServlet', servletPort], {
             cwd: __dirname
         });
 
@@ -123,7 +123,7 @@ function runProc(args, cb) {
  * @param  {Function} cb      callback when complete
  */
 function runCMD(name, program, cb) {
-    var args = ["-cp", ".:temp", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "TerminalRunner"];
+    var args = ["-cp", ".", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "TerminalRunner"];
     args.push(name);
     args.push(program);
 

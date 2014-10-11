@@ -46,133 +46,18 @@ import javax.tools.ToolProvider;
 
 
 /**
- * A test class to test dynamic compilation API.
- * args[0] is the name of the calss
- * args[1] is the code to run
- *
+ * A class for dynamic runinng JavaCode form a Sting.
  */
 public class JavaRunner {
-    static boolean DEBUG = true;
-    static final Logger logger = Logger.getLogger(JavaRunner.class.getName()) ;
 
-    private static void displayLocation(StandardJavaFileManager manager, StandardLocation standardLocation) {
-      System.err.println(standardLocation.getName());
-      Iterable<? extends File> location = manager.getLocation(standardLocation);
-      if (location == null) return;
-      for (File f : location) {
-        System.err.println(f.getAbsolutePath());
-      }
-    }
-    public static void compileToFile(String name, String code){
-      compileToFile(name,code,5000);
-    }
-
-    public static void compileToFile(String name, String source, int timeLimit) {
-      // create the source
-      File sourceFile   = new File("./temp/"+name+".java");
-      File classFile = new File("./temp");
-      String path = sourceFile.getAbsolutePath();
-      String classPath = classFile.getAbsolutePath();
-
-      JavaCompiler compiler    = ToolProvider.getSystemJavaCompiler();
-      StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-      
-      try {
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(path), "utf-8"));
-        writer.write(source);
-        writer.close();
-
-
-        fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(classFile));
-      } catch (IOException e) {
-          e.printStackTrace();
-      }
-
-      List<String> compileOptions = new ArrayList<String>();
-      // System.out.print(System.getProperty("java.class.path"));
-      compileOptions.addAll(Arrays.asList("-classpath", ".:"+classPath));
-
-      /*Create a diagnostic controller, which holds the compilation problems*/
-      DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
- 
-      // Compile the file
-      boolean status = compiler.getTask(null,
-                 fileManager,
-                 diagnostics,
-                 compileOptions,
-                 null,
-                 fileManager.getJavaFileObjectsFromFiles(Arrays.asList(sourceFile)))
-              .call();
- 
-        if (!status) {//If compilation error occurs
-            /*Iterate through each compilation problem and print it*/
-            for (Diagnostic diagnostic : diagnostics.getDiagnostics()){
-                System.err.format("Error on line %d in %s", diagnostic.getLineNumber(), diagnostic);
-            }
-        } else {
-          ExecutorService service = Executors.newSingleThreadExecutor();
-
-          try {
-              Runnable r = new Runnable() {
-                  @Override
-                  public void run() {
-                    try {
-                      // Class[] params = new Class[] {String[].class};
-                      Object paramsObj[] = {};
-                      // Class thisClass = Class.forName(name);
-                      Object iClass = null;// thisClass.newInstance();
-                      Class.forName(name).getDeclaredMethod("main", new Class<?>[] { String[].class }).invoke(iClass, new Object[] { null });
-                      // Method thisMethod = thisClass.getDeclaredMethod("main", params);
-                      // thisMethod.invoke(iClass, new Object[] { null });
-                    } catch (ClassNotFoundException e) {
-                      e.printStackTrace();
-                    } catch (NoSuchMethodException e) {
-                      System.err.println("No such method: " + e);
-                    } catch (IllegalAccessException e) {
-                      System.err.println("Illegal access: " + e);
-                    } catch (InvocationTargetException e) {
-                      System.err.println("RuntimeError: "+e.getTargetException());
-                    }
-                  }
-                };
-
-              Future<?> f = service.submit(r);
-
-              f.get(timeLimit, TimeUnit.MILLISECONDS);     // attempt the task for timelimit default 5 seconds
-          }
-          catch (final InterruptedException e) {
-            System.err.println("Thread Interrupted: " + e);
-          }
-          catch (final TimeoutException e) {
-            System.err.println("TimeoutException: Your program ran for more than "+timeLimit);
-          }
-          catch (final ExecutionException e) {
-            e.printStackTrace();
-          }
-          finally {
-              service.shutdown();
-          }
-        }
-
-        try {
-            sourceFile.delete();
-            new File("./temp/"+name+".class").delete();
-            fileManager.close() ;//Close the file manager
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
-    
     public static void compile(String name, String code){
       compile(name,code,5000);
     }
-
     /**
      * compiles and runs main method from code
      * @param name      Class Name
      * @param code      String to compile
-     * @param timeLimit limitfor this program to run currently not applied
+     * @param timeLimit (otional) limit for code to run, default to 5 seconds
      */
     public static void compile(String name, String code, int timeLimit){
 
@@ -191,11 +76,8 @@ public class JavaRunner {
          * Thus we reduce the overhead of scanning through file system and jar files each time
          */
         StandardJavaFileManager stdFileManager = compiler.getStandardFileManager(null, null, null);
-        try {
-          stdFileManager.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(new File("./temp")));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        //uses custom file manager with defined class loader inorder to unload the compiled class when this is done
+        ClassFileManager fileManager =  new ClassFileManager(stdFileManager);
 
         /* Prepare a list of compilation units (java source code file objects) to input to compilation task*/
         Iterable<? extends JavaFileObject> compilationUnits = Arrays.asList(javaFileObjects);
@@ -210,31 +92,25 @@ public class JavaRunner {
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
  
         /*Create a compilation task from compiler by passing in the required input objects prepared above*/
-        CompilationTask compilerTask = compiler.getTask(null, stdFileManager, diagnostics, compileOptions, null, compilationUnits) ;
+        CompilationTask compilerTask = compiler.getTask(null, fileManager, diagnostics, compileOptions, null, compilationUnits) ;
         
-        // if (DEBUG) {
-        //   System.err.println("Has location CLASS_OUPUT : " + forwardingJavaFileManager.hasLocation(StandardLocation.CLASS_OUTPUT));
-        // }
         //Perform the compilation by calling the call method on compilerTask object.
         boolean status = compilerTask.call();
 
-        // displayLocation(stdFileManager, StandardLocation.CLASS_PATH);
-        // displayLocation(stdFileManager, StandardLocation.PLATFORM_CLASS_PATH);
- 
         if (!status){//If compilation error occurs
             /*Iterate through each compilation problem and print it*/
             for (Diagnostic diagnostic : diagnostics.getDiagnostics()){
                 System.err.format("Error on line %d in %s", diagnostic.getLineNumber(), diagnostic);
             }
         } else {
-          // ExecutorService service = Executors.newSingleThreadExecutor();
+          ExecutorService service = Executors.newSingleThreadExecutor();
 
-          // try {
-          //     Runnable r = new Runnable() {
-          //         @Override
-          //         public void run() {
+          try {
+              Runnable r = new Runnable() {
+                  @Override
+                  public void run() {
                     try {
-                      Class.forName(name).getDeclaredMethod("main", new Class[] { String[].class }).invoke(null, new Object[] { null });
+                      fileManager.getClassLoader(null).loadClass(name).getDeclaredMethod("main", new Class[] { String[].class }).invoke(null, new Object[] { null });
                     } catch (ClassNotFoundException e) {
                       System.err.println("Class not found: " + e);
                     } catch (NoSuchMethodException e) {
@@ -245,36 +121,31 @@ public class JavaRunner {
                       System.err.println("RuntimeError: "+e.getTargetException());
                     }
                     try {
-                        // remove .class
-                        (new File("./temp/"+name+".class")).delete();
-                        fileObject.delete(); // doesn't do anything but it makes me feel better
-                        // stdFileManager.flush();
-                        stdFileManager.close();
-                        // forwardingJavaFileManager.flush();
-                        // forwardingJavaFileManager.close(); //Close the file manager
+                        fileObject.delete();
+                        fileManager.close();
                         ResourceBundle.clearCache(ClassLoader.getSystemClassLoader()); // <--useless
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                  // }
-          //     };
+                  }
+              };
 
-          //     Future<?> f = service.submit(r);
+              Future<?> f = service.submit(r);
 
-          //     f.get(timeLimit, TimeUnit.MILLISECONDS);     // attempt the task for timelimit default 5 seconds
-          // }
-          // catch (final InterruptedException e) {
-          //   System.err.println("Thread Interrupted: " + e);
-          // }
-          // catch (final TimeoutException e) {
-          //   System.err.println("TimeoutException: Your program ran for more than "+timeLimit);
-          // }
-          // catch (final ExecutionException e) {
-          //   e.printStackTrace();
-          // }
-          // finally {
-          //     service.shutdown();
-          // }
+              f.get(timeLimit, TimeUnit.MILLISECONDS);     // attempt the task for timelimit default 5 seconds
+          }
+          catch (final InterruptedException e) {
+            System.err.println("Thread Interrupted: " + e);
+          }
+          catch (final TimeoutException e) {
+            System.err.println("TimeoutException: Your program ran for more than "+timeLimit);
+          }
+          catch (final ExecutionException e) {
+            e.printStackTrace();
+          }
+          finally {
+              service.shutdown();
+          }
         }        
     }
 }
@@ -312,7 +183,7 @@ class DynamicJavaSourceCodeObject extends SimpleJavaFileObject{
     }
 }
 
-// the idea is to create a Dynamic class instead of writing to filesystem, it wasn't productive
+// the idea is to create a Dynamic class instead of writing to filesystem
 class JavaClassObject extends SimpleJavaFileObject {
 
     /**
@@ -359,12 +230,20 @@ class JavaClassObject extends SimpleJavaFileObject {
     }
 }
 
+/**
+ * We use this file manager so that the compiled class from source can be unloaded
+ * also not having ot write to fileSystem
+ */
 class ClassFileManager extends ForwardingJavaFileManager<StandardJavaFileManager> {
     /**
     * Instance of JavaClassObject that will store the
     * compiled bytecode of our class
     */
     private JavaClassObject jclassObject;
+    /**
+     * Instance of ClassLoader
+     */
+    private SecureClassLoader classLoader;
 
     /**
     * Will initialize the manager with the specified
@@ -374,6 +253,15 @@ class ClassFileManager extends ForwardingJavaFileManager<StandardJavaFileManager
     */
     public ClassFileManager(StandardJavaFileManager standardManager) {
         super(standardManager);
+        this.classLoader = new SecureClassLoader() {
+            @Override
+            protected Class<?> findClass(String name)
+                throws ClassNotFoundException {
+                byte[] b = jclassObject.getBytes();
+                return super.defineClass(name, jclassObject
+                    .getBytes(), 0, b.length);
+            }
+        };
     }
 
     /**
@@ -385,15 +273,13 @@ class ClassFileManager extends ForwardingJavaFileManager<StandardJavaFileManager
     */
     @Override
     public ClassLoader getClassLoader(Location location) {
-        return new SecureClassLoader() {
-            @Override
-            protected Class<?> findClass(String name)
-                throws ClassNotFoundException {
-                byte[] b = jclassObject.getBytes();
-                return super.defineClass(name, jclassObject
-                    .getBytes(), 0, b.length);
-            }
-        };
+        return this.classLoader; 
+    }
+
+    public void unloadClass(Location location) {
+        this.classLoader = null;
+        this.jclassObject = null;
+        System.gc();
     }
 
     /**
@@ -408,37 +294,3 @@ class ClassFileManager extends ForwardingJavaFileManager<StandardJavaFileManager
         return jclassObject;
     }
 }
-// traces filemanager
-// ForwardingJavaFileManager<StandardJavaFileManager> forwardingJavaFileManager = new ForwardingJavaFileManager<StandardJavaFileManager>(stdFileManager) {
-        //   @Override
-        //   public FileObject getFileForInput(Location location, String packageName, String relativeName)
-        //       throws IOException {
-        //     if (DEBUG) {
-        //       System.err.println("Create file for input : " + packageName + " " + relativeName + " in location " + location);
-        //     }
-        //     return super.getFileForInput(location, packageName, relativeName);
-        //   }
-        //   @Override
-        //   public JavaFileObject getJavaFileForInput(Location location, String className, Kind kind)
-        //       throws IOException {
-        //     if (DEBUG) {
-        //       System.err.println("Create java file for input : " + className + " in location " + location);
-        //     }
-        //     return super.getJavaFileForInput(location, className, kind);
-        //   }
-        //   @Override
-        //   public JavaFileObject getJavaFileForOutput(Location location,
-        //       String className,
-        //       Kind kind,
-        //       FileObject sibling) throws IOException {
-
-        //     if (DEBUG) {
-        //       System.err.println("Create .class file for " + className + " in location " + location + " with sibling " + sibling.toUri());
-        //     }
-        //     JavaFileObject javaFileForOutput = super.getJavaFileForOutput(location, className, kind, sibling);
-        //     if (DEBUG) {
-        //       System.err.println(javaFileForOutput.toUri());
-        //     }
-        //     return javaFileForOutput;
-        //   }
-        // };
