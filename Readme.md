@@ -25,9 +25,11 @@ Run server
 
 The default port is `8080`
 
-the server will return a statusCode 200 for GET request to `'/'`
-the server will return a JSON object `{stout:String, sterr:String}` for POST request to `'/'`
-the POST body should be {name:[nameOfClass], code:[ClassContent]}
+The server will return a statusCode 200 for GET request to `'/'`.
+
+The server will return a JSON object `{stout:String, sterr:String}` for POST request to `'/'`.
+
+The POST body should be {name:[nameOfClass], code:[ClassContent]}
 
 example in nodejs, you can build a similar request using [postman](https://chrome.google.com/webstore/detail/postman-rest-client/fdmmgilgnpjigdojojpjoooidkmcomcm?hl=en)
 
@@ -49,3 +51,7 @@ example in nodejs, you can build a similar request using [postman](https://chrom
 
     post_req.write(post_data);
     post_req.end();
+
+java dependencies are in the .java-dependency file
+
+This code is designed for UNIX system it may be incompatible with Windows, eg. I use the ':' to speerate classpath
