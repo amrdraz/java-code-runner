@@ -1,8 +1,7 @@
 
 import java.io.IOException;
 import java.io.BufferedWriter;
-import java.io.OutputStreamWriter;
-import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.io.File;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -146,7 +145,7 @@ public class JavaRunner {
           finally {
               service.shutdown();
           }
-        }        
+        }
     }
 }
 

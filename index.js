@@ -9,6 +9,7 @@ var _ = require('lodash');
 var running = 0; // workaround to reduce event loop blocking when running in terminal
 var runTimeout = 2000;
 var servletReady = false; // flag if server is ready to reseave post requests
+var startingServer = false; // flag if server is ready to reseave post requests
 var defaultPort = 3678; // default port picked it at random
 
 var servletPort;
@@ -35,7 +36,7 @@ function getPort(cb) {
 /**
  * Starts the servlet on an empty port default is 3678
  */
-function startServlet() {
+function startServlet(cb) {
     getPort(function(port) {
         servletPort = global._servletPort = '' + port;
 
@@ -50,6 +51,8 @@ function startServlet() {
             console.log("" + data);
             if (~data.toString().indexOf(servletPort)) {
                 servletReady = true;
+                startingServer = false;
+                cb && cb(port);
             }
         });
         servlet.on('exit', function(code) {
@@ -68,23 +71,40 @@ function startServlet() {
  * Check if a server server is runing on port 3678 if so no need to start a new server
  * @param  {number} port port to check against default to defaultPort
  */
-function checkIfServletIsAlreadyRunning(port) {
-    if(!port) {
+var checkIfServletIsAlreadyRunning = exports.runServer = function(port, cb) {
+    if (!port) {
+        port = defaultPort;
+    } else if (_.isFunction(port)) {
+        cb = port;
         port = defaultPort;
     }
     http.get("http://localhost:" + port + "/", function(res) {
         if (res.statusCode === 200) {
             servletPort = global.servletPort = port;
-            // servlet = global._servlet;
             servletReady = true;
+            if (cb) {
+                cb(port);
+            }
+            startingServer = false;
         } else {
             console.log(res);
         }
     }).on('error', function(e) {
-        console.log('No server running starting our own');
-        startServlet();
+        if (!startingServer) {
+            if(servletPort) {
+                return cb(+servletPort);
+            }
+            startingServer = true;
+            console.log('No server running starting our own');
+            startServlet(cb);
+        } else {
+            console.log('a server is starting waiting till it does');
+            _.delay(function() {
+                checkIfServletIsAlreadyRunning(cb);
+            }, 1000);
+        }
     });
-}
+};
 
 // start server
 checkIfServletIsAlreadyRunning(global._servletPort || defaultPort);
@@ -169,19 +189,22 @@ function runInServlet(name, program, cb) {
         var responseString = '';
 
         res.on('data', function(data) {
-            responseString += data;
-        });
-
-        res.on('end', function() {
-            var data = JSON.parse(responseString);
+            data = JSON.parse(data);
             cb(null, data.stout, data.sterr);
         });
+
+        // res.on('end', function() {
+        //     console.log('::-----end-----::');
+        //     var data = JSON.parse(responseString);
+        //     console.log(responseString);
+        //     console.log('::-----end-----::');
+        //     cb(null, data.stout, data.sterr);
+        // });
     });
 
     post_req.on('error', function(e) {
         cb(e);
     });
-
     post_req.write(post_data);
     post_req.end();
 }
@@ -207,8 +230,8 @@ var run = exports.run = function(code, options, cb) {
 
     var pre = (options.preCode || '').replace(/\/\/.*$/gm, '').replace(/\r?\n|\r/g, ' ');
     var post = (options.postCode || '');
-    var name = (options.name || "Main");//+Date.now()+""+_.random(0, 2000000); // workaround if all else fails
-    
+    var name = ((options.name && classCase(options.name)) || "Main") + (options.debug_number || ''); //+Date.now()+""+_.random(0, 2000000); // workaround if all else fails
+
     var preClass = '';
     // <comma-separated-default-imports>        (default: none)
     if (options.di) {
@@ -360,3 +383,14 @@ var runJavaAsClassBody = exports.runJavaAsClassBody = function(code, args, cb) {
 
     cp.exec(cmd.join(" "), cb);
 };
+
+/**
+ * Turn a sting to Java class style camel Case striping - and space chracters
+ * @param  {[type]} input [description]
+ * @return {[type]}       [description]
+ */
+function classCase(input) {
+    return input.toUpperCase().replace(/[\-\s](.)/g, function(match, group1) {
+        return group1.toUpperCase();
+    });
+}
