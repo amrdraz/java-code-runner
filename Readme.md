@@ -55,3 +55,9 @@ example in nodejs, you can build a similar request using [postman](https://chrom
 java dependencies are in the .java-dependency file
 
 This code is designed for UNIX system it may be incompatible with Windows, eg. I use the ':' to speerate classpath
+
+
+###Things left to do
+
+Handle the case of infinit loops
+Look inot runing the java server as a docker container

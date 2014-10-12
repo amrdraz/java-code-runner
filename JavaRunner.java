@@ -102,12 +102,12 @@ public class JavaRunner {
                 System.err.format("Error on line %d in %s", diagnostic.getLineNumber(), diagnostic);
             }
         } else {
-          ExecutorService service = Executors.newSingleThreadExecutor();
+          // ExecutorService service = Executors.newSingleThreadExecutor();
 
-          try {
-              Runnable r = new Runnable() {
-                  @Override
-                  public void run() {
+          // try {
+          //     Runnable r = new Runnable() {
+          //         @Override
+          //         public void run() {
                     try {
                       fileManager.getClassLoader(null).loadClass(name).getDeclaredMethod("main", new Class[] { String[].class }).invoke(null, new Object[] { null });
                     } catch (ClassNotFoundException e) {
@@ -126,25 +126,25 @@ public class JavaRunner {
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                  }
-              };
+              //     }
+              // };
 
-              Future<?> f = service.submit(r);
+          //     Future<?> f = service.submit(r);
 
-              f.get(timeLimit, TimeUnit.MILLISECONDS);     // attempt the task for timelimit default 5 seconds
-          }
-          catch (final InterruptedException e) {
-            System.err.println("Thread Interrupted: " + e);
-          }
-          catch (final TimeoutException e) {
-            System.err.println("TimeoutException: Your program ran for more than "+timeLimit);
-          }
-          catch (final ExecutionException e) {
-            e.printStackTrace();
-          }
-          finally {
-              service.shutdown();
-          }
+          //     f.get(timeLimit, TimeUnit.MILLISECONDS);     // attempt the task for timelimit default 5 seconds
+          // }
+          // catch (final InterruptedException e) {
+          //   System.err.println("Thread Interrupted: " + e);
+          // }
+          // catch (final TimeoutException e) {
+          //   System.err.println("TimeoutException: Your program ran for more than "+timeLimit);
+          // }
+          // catch (final ExecutionException e) {
+          //   e.printStackTrace();
+          // }
+          // finally {
+          //     service.shutdown();
+          // }
         }
     }
 }

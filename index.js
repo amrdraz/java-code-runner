@@ -7,7 +7,7 @@ var fs = require('fs');
 var _ = require('lodash');
 
 var running = 0; // workaround to reduce event loop blocking when running in terminal
-var runTimeout = 2000;
+var runTimeout = 5000;
 var servletReady = false; // flag if server is ready to reseave post requests
 var startingServer = false; // flag if server is ready to reseave post requests
 var defaultPort = 3678; // default port picked it at random
@@ -167,6 +167,7 @@ function runCMD(name, program, cb) {
  * @param  {Function} cb      callback when complete
  */
 function runInServlet(name, program, cb) {
+    var timer;
     var post_data = querystring.stringify({
         'name': name,
         'code': program
@@ -189,6 +190,7 @@ function runInServlet(name, program, cb) {
         var responseString = '';
 
         res.on('data', function(data) {
+            clearTimeout(timer);
             data = JSON.parse(data);
             cb(null, data.stout, data.sterr);
         });
@@ -205,6 +207,9 @@ function runInServlet(name, program, cb) {
     post_req.on('error', function(e) {
         cb(e);
     });
+    timer = setTimeout(function () {
+        cb(new Error("TimeoutException: Your program ran for more than "+runTimeout));
+    },runTimeout);
     post_req.write(post_data);
     post_req.end();
 }
@@ -239,6 +244,7 @@ var run = exports.run = function(code, options, cb) {
             return s + 'import ' + i + ';';
         }, '');
     }
+
     // code to run
     code = pre + '\n' + code + '\n' + post;
 
@@ -251,12 +257,87 @@ var run = exports.run = function(code, options, cb) {
         "}";
 
     // if servlet is not ready run code from TerminalRunner
-    if (servletReady) {
+    if (servletReady && !options.runInCMD) {
         runInServlet(name, program, cb);
     } else {
         runCMD(name, program, cb);
     }
 };
+
+/**
+ * Test Java code using somple test framework
+ * @param  {String}   code    [description]
+ * @param  {String}   test    [description]
+ * @param  {Object}   options [description]
+ * @param  {Function} cb      [description]
+ */
+var test = exports.test = function(code, test, options, cb) {
+    if (_.isEmpty(code)) cb(new Error('code can not be undefined'));
+    if (!test) cb(new Error('test can not be undefined'));
+    if (!options.exp) cb(new Error('challange must have exp'));
+    var hash = _.random(0, 200000000);
+    var opt = _.clone(options);
+    opt.runInCMD = opt.runInCMD || !servletReady;
+    //capture sys streams and set uniq test hash
+    // make sure to acomidate for both threaded and none
+    if(opt.runInCMD) {
+         opt.preCode = 'final ByteArrayOutputStream $userOut = new ByteArrayOutputStream();\n' +
+            'final ByteArrayOutputStream $userErr = new ByteArrayOutputStream();\n' +
+            'final PrintStream _$sysOut = System.out;\n' +
+            'final PrintStream _$sysErr = System.err;\n' +
+            'System.setOut(new PrintStream($userOut));\n' +
+            'System.setErr(new PrintStream($userErr));\n' +
+            'Test.setHash("' + hash + '");' +
+            (opt.preCode || '');
+        opt.postCode = (opt.postCode || '') + '\n' +
+            'System.setOut(_$sysOut);' +
+            'System.setErr(_$sysErr);' + '\n' +
+            test+
+            'Test.resetTest();';
+    } else {
+        opt.preCode = 'final ByteArrayOutputStream $userOut = new ByteArrayOutputStream();\n' +
+            'final ByteArrayOutputStream $userErr = new ByteArrayOutputStream();\n' +
+            'final PrintStream _$sysOut = ((ThreadPrintStream)System.out).getThreadOut();\n' +
+            'final PrintStream _$sysErr = ((ThreadPrintStream)System.out).getThreadOut();\n' +
+            '((ThreadPrintStream)System.out).setThreadOut(new PrintStream($userOut));\n' +
+            '((ThreadPrintStream)System.err).setThreadOut(new PrintStream($userErr));\n' +
+            'Test.setHash("' + hash + '");' +
+            (opt.preCode || '');
+        opt.postCode = (opt.postCode || '') + '\n' +
+            '((ThreadPrintStream)System.out).setThreadOut(new PrintStream(_$sysOut));\n' +
+            '((ThreadPrintStream)System.err).setThreadOut(new PrintStream(_$sysErr));\n' +
+            test+
+            'Test.resetTest();';
+    }
+
+    opt.di = (opt.di || '') + (opt.di ? ',' : '') + 'java.io.ByteArrayOutputStream,java.io.PrintStream';
+
+    run(code, opt, function(err, stout, sterr) {
+        if (err && !sterr) return cb(err);
+        sterr && console.log(sterr);
+
+        var report = {
+            passed: false,
+            score: 0,
+            passes: [],
+            failures: [],
+            tests: []
+        };
+        var tests = stout.match(new RegExp("<\\[" + hash + "\\]>(.*)<\\[" + hash + "\\]>", "g")) || [];
+        if (!_.isEmpty(tests)) {
+            tests = report.tests = JSON.parse(('[' + tests.join(',') + ']').replace(new RegExp("<\\[" + hash + "\\]>", 'g'), ''));
+            report.passes = _.filter(tests, 'pass');
+            report.failures = _.reject(tests, 'pass');
+            report.score = _.reduce(tests, function(sum, t) {
+                return sum + t.score;
+            }, 0);
+            report.score = Math.max(0, Math.min(report.score, options.exp));
+            report.passed = report.passes.length === tests.length;
+        }
+        cb(null, report, stout, sterr);
+    });
+};
+
 
 
 /**
@@ -309,62 +390,6 @@ var runJavaAsScript = exports.runJavaAsScript = function(code, options, cb) {
     }, cb);
 };
 
-/**
- * Test Java code using somple test framework
- * @param  {String}   code    [description]
- * @param  {String}   test    [description]
- * @param  {Object}   options [description]
- * @param  {Function} cb      [description]
- */
-var testJavaAsScript = exports.testJavaAsScript = function(code, test, options, cb) {
-    if (_.isEmpty(code)) cb(new Error('code can not be undefined'));
-    if (!test) cb(new Error('test can not be undefined'));
-    if (!options.exp) cb(new Error('challange must have exp'));
-    var hash = _.random(0, 200000000);
-    var opt = _.clone(options);
-    //capture sys streams and set uniq test hash
-    console.log(hash);
-    opt.preCode = 'final ByteArrayOutputStream $userOut = new ByteArrayOutputStream();\n' +
-        'final ByteArrayOutputStream $userErr = new ByteArrayOutputStream();\n' +
-        'final PrintStream _$sysOut = System.out;\n' +
-        'final PrintStream _$sysErr = System.err;\n' +
-        'System.setOut(new PrintStream($userOut));\n' +
-        'System.setErr(new PrintStream($userErr));\n' +
-        'Test.setHash("' + hash + '");' +
-        (opt.preCode || '');
-    opt.postCode = (opt.postCode || '') + '\n' +
-        'System.setOut(_$sysOut);' +
-        'System.setErr(_$sysErr);' + '\n' +
-        test;
-    opt.di = (opt.di || '') + (opt.di ? ',' : '') + 'java.io.ByteArrayOutputStream,java.io.PrintStream';
-
-    run(code, opt, function(err, stout, sterr) {
-        if (err && !sterr) return cb(err);
-        console.log(stout);
-        sterr && console.log(sterr);
-        console.log(hash);
-
-        var report = {
-            passed: false,
-            score: 0,
-            passes: [],
-            failures: [],
-            tests: []
-        };
-        var tests = stout.match(new RegExp("<\\[" + hash + "\\]>(.*)<\\[" + hash + "\\]>", "g")) || [];
-        if (!_.isEmpty(tests)) {
-            tests = report.tests = JSON.parse(('[' + tests.join(',') + ']').replace(new RegExp("<\\[" + hash + "\\]>", 'g'), ''));
-            report.passes = _.filter(tests, 'pass');
-            report.failures = _.reject(tests, 'pass');
-            report.score = _.reduce(tests, function(sum, t) {
-                return sum + t.score;
-            }, 0);
-            report.score = Math.max(0, Math.min(report.score, options.exp));
-            report.passed = report.passes.length === tests.length;
-        }
-        cb(null, report, stout, sterr);
-    });
-};
 
 /**
  * Run a Strign of java code as if it is inside the body of a class

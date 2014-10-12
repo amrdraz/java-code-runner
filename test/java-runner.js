@@ -39,6 +39,7 @@ describe('Java runner', function() {
                     done();
                 });
         });
+
         it('should run multiple simple java prgrams concurently', function(done) {
             this.timeout(20000);
             Promise.map(new Array(10), function(x, i) {
@@ -63,49 +64,111 @@ describe('Java runner', function() {
                 done();
             }).catch(done);
         });
+
+        it('should respond to post using Test.java', function(done) {
+            request(url)
+                .post("/")
+                .set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
+                .send({
+                    name: 'MainTest',
+                    code: 'public class MainTest {public static void main (String [] args) { System.out.print("Hello World"); Test.pass("you did it!");}}'
+                })
+                .end(function(err, res) {
+                    if (err) return done(err);
+                    expect(res.body.stout).to.contain('<[TestOut]>');
+                    done();
+                });
+        });
     });
 
-    describe('index#run', function() {
-        it('should run java', function(done) {
-            runner.run('System.out.print("Hello");', function(err, stout, sterr) {
-                stout && console.log(stout);
-                sterr && console.error(sterr);
-                if (err) return done(err);
-                expect(stout).to.equal('Hello');
+    // describe('index#run', function() {
+    //     it('should run java', function(done) {
+    //         runner.run('System.out.print("Hello");', function(err, stout, sterr) {
+    //             stout && console.log(stout);
+    //             sterr && console.error(sterr);
+    //             if (err) return done(err);
+    //             expect(stout).to.equal('Hello');
+    //             done();
+    //         });
+    //     });
+
+    //     it('should output sterr java', function(done) {
+    //         runner.run('System.out.print("Hello")', function(err, stout, sterr) {
+    //             stout && console.log(stout);
+    //             sterr && console.error(sterr);
+    //             expect(sterr).to.exist;
+    //             done();
+    //         });
+    //     });
+
+    //     it('should run multiple simple java prgrams', function(done) {
+    //         this.timeout(20000);
+    //         Promise.map(new Array(40), function(x, i) {
+    //             return new Promise(function(resolve, reject) {
+    //                 setTimeout(function() {
+    //                     var start = new Date().getTime();
+    //                     runner.run('System.out.print("Hello");System.out.print("World");', {
+    //                         debug_number: i
+    //                     }, function(err, stout, sterr) {
+    //                         if (err) {
+    //                             console.error(err + '\n==========================\n');
+    //                             reject(err);
+    //                         }
+    //                         sterr && console.error(sterr);
+    //                         expect(stout).to.equal('HelloWorld');
+    //                         var end = new Date().getTime();
+    //                         var time = end - start;
+    //                         console.log('ran in ' + time + 'ms');
+    //                         resolve();
+    //                     });
+    //                 }, i * 40); //simulate trafic
+    //             });
+    //         }).then(function() {
+    //             done();
+    //         }).catch(done);
+    //     });
+
+    // });
+
+    describe('index#test', function() {
+        var code = 'char c =\'a\'; int a = 40, b = 20; System.out.print("a - b = " + (a - b));';
+        var test = 'Test.expect($userOut.toString(),"a - b = 20");';
+
+        it('should run code against test', function(done) {
+            runner.test(code, test, {
+                name: 'TestMain',
+                exp: 1
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                console.log(report);
+                // stout && console.log(stout);
+                // sterr && console.error(sterr);
+                expect(report.passed).to.be.true;
                 done();
             });
         });
 
-        it('should output sterr java', function(done) {
-            runner.run('System.out.print("Hello")', function(err, stout, sterr) {
-                stout && console.log(stout);
-                sterr && console.error(sterr);
-                expect(sterr).to.exist;
-                done();
-            });
-        });
-
-        it('should run multiple simple java prgrams', function(done) {
+        it('should run multiple tests concurently', function(done) {
             this.timeout(20000);
-            Promise.map(new Array(40), function(x, i) {
+            Promise.map(new Array(10), function(x, i) {
                 return new Promise(function(resolve, reject) {
-                    setTimeout(function() {
-                        var start = new Date().getTime();
-                        runner.run('System.out.print("Hello");System.out.print("World");', {
-                            debug_number: i
-                        }, function(err, stout, sterr) {
-                            if (err) {
-                                console.error(err + '\n==========================\n');
-                                reject(err);
-                            }
-                            sterr && console.error(sterr);
-                            expect(stout).to.equal('HelloWorld');
-                            var end = new Date().getTime();
-                            var time = end - start;
-                            console.log('ran in ' + time + 'ms');
-                            resolve();
-                        });
-                    }, i * 40); //simulate trafic
+                    // setTimeout(function() {
+                    runner.test(code, test, {
+                        name: 'TestMain',
+                        exp: 1
+                    }, function(err, report, stout, sterr) {
+                        if (err) {
+                            return reject(err);
+                        }
+                        // console.log(report);
+                        stout && console.log(stout);
+                        // sterr && console.error(sterr);
+                        // expect(report.passed).to.be.true;
+                        resolve();
+                    });
+                    // }, i * 40); //simulate trafic
                 });
             }).then(function() {
                 done();
@@ -181,17 +244,18 @@ describe('Java runner', function() {
         //     }).catch(done);
         // });
 
-        // it('should stop infinite loops', function(done) {
-        //     this.timeout(5000);
-        //     runner.run('long i = 100000000; while(i>0){if(i==30000){i+=3000;}i--;} System.out.print(i);', function(err, stout, sterr) {
-        //         if (err) {
-        //             console.error(err + '\n==========================\n');
-        //             return done(err);
-        //         }
-        //         stout && console.log(stout);
-        //         sterr && console.error(sterr);
-        //         if(sterr) return done(sterr);
-        //         done();
-        //     });
+        it('should stop infinite loops', function(done) {
+            this.timeout(5000);
+            runner.run('long i = 100000000; while(i>0){if(i==30000){i+=3000;}i--;} System.out.print(i);', function(err, stout, sterr) {
+                if (err) {
+                    console.error(err + '\n==========================\n');
+                    return done(err);
+                }
+                stout && console.log(stout);
+                sterr && console.error(sterr);
+                if(sterr) return done(sterr);
+                done();
+            });
+        });
     });
 });
