@@ -16,6 +16,14 @@ import java.util.logging.Logger;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ExecutionException;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -94,31 +102,75 @@ class ServletRoute extends HttpServlet
     {
         String code = request.getParameter("code");
         String name = request.getParameter("name");
+        long timeLimit = 5000;
+        if(request.getParameter("timeLimit")!=null) {
+          timeLimit = Integer.parseInt(request.getParameter("timeLimit"));
+        }
 
         // out.println(":--------Recived POST for "+name+"-------:");
         // out.println(code);
         // out.println("-----------------------------------------");
+
+        response.setContentType("application/json");
+        response.setStatus(HttpServletResponse.SC_OK);
+
+        // response map
+        Map<String,String> res = new HashMap<String,String>();
+
+        // start executor in order to timeout
+        ExecutorService service = Executors.newSingleThreadExecutor();
+
+          try {
+              Runnable r = new Runnable() {
+                  @Override
+                  public void run() {
+
         ByteArrayOutputStream runnerOut = new ByteArrayOutputStream();
         ByteArrayOutputStream runnerErr = new ByteArrayOutputStream();
         ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(runnerOut));
         ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(runnerErr));
 
-
         JavaRunner.compile(name,code);
-
 
         ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(out));
         ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(err));
 
+        try {
+          res.put("stout", runnerOut.toString());
+          res.put("sterr", runnerErr.toString());
+          response.getWriter().print(JSON.toString(res));
+        } catch (Exception  e) {
+          e.printStackTrace();
+        }
+
+                  }
+              };
+
+              Future<?> f = service.submit(r);
+
+              f.get(timeLimit, TimeUnit.MILLISECONDS);     // attempt the task for timelimit default 5 seconds
+          }
+          catch (InterruptedException e) {
+            err.println("Thread Interrupted: " + e);
+          }
+          catch (TimeoutException e) {
+            res.put("stout", "");
+            res.put("sterr", "TimeoutException: Your program ran for more than "+timeLimit+"ms");
+            response.getWriter().print(JSON.toString(res));
+          }
+          catch (final ExecutionException e) {
+            e.printStackTrace();
+          }
+          catch (Exception e) {
+            e.printStackTrace();
+          }
+          finally {
+            service.shutdown();
+          }
+
         // out.println(":"+name+":"+out[0].toString()+":----:");
         // out.println(":--------Sending response for "+name+"-------:");
 
-        response.setContentType("application/json");
-        response.setStatus(HttpServletResponse.SC_OK);
-
-        Map<String,String> res = new HashMap<String,String>();
-        res.put("stout", runnerOut.toString());
-        res.put("sterr", runnerErr.toString());
-        response.getWriter().print(JSON.toString(res));
+        
     }
 }

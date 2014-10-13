@@ -166,11 +166,12 @@ function runCMD(name, program, cb) {
  * @param  {String}   program source code of JavaClass with public class [name]
  * @param  {Function} cb      callback when complete
  */
-function runInServlet(name, program, cb) {
+function runInServlet(name, program, cb, timeLimit) {
     var timer;
     var post_data = querystring.stringify({
         'name': name,
-        'code': program
+        'code': program,
+        'timeLimit':timeLimit||5000
     });
     // An object of options to indicate where to post to
     var post_options = {
@@ -258,7 +259,7 @@ var run = exports.run = function(code, options, cb) {
 
     // if servlet is not ready run code from TerminalRunner
     if (servletReady && !options.runInCMD) {
-        runInServlet(name, program, cb);
+        runInServlet(name, program, cb, options.timeLimit);
     } else {
         runCMD(name, program, cb);
     }
@@ -274,6 +275,7 @@ var run = exports.run = function(code, options, cb) {
 var test = exports.test = function(code, test, options, cb) {
     if (_.isEmpty(code)) cb(new Error('code can not be undefined'));
     if (!test) cb(new Error('test can not be undefined'));
+    if(options.timeLimit && options.timeLimit<0) cb(new Error("TimeLimit can not be negative")); 
     if (!options.exp) cb(new Error('challange must have exp'));
     var hash = _.random(0, 200000000);
     var opt = _.clone(options);
