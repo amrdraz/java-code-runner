@@ -5,6 +5,10 @@ import java.io.PrintStream;
 import java.io.File;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
+import java.util.NoSuchElementException;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -102,49 +106,36 @@ public class JavaRunner {
                 System.err.format("Error on line %d in %s", diagnostic.getLineNumber(), diagnostic);
             }
         } else {
-          // ExecutorService service = Executors.newSingleThreadExecutor();
+  
+            try {
+              fileManager.getClassLoader(null).loadClass(name).getDeclaredMethod("main", new Class[] { String[].class }).invoke(null, new Object[] { null });
+            } catch (ClassNotFoundException e) {
+              System.err.println("Class not found: " + e);
+            } catch (NoSuchMethodException e) {
+              System.err.println("No such method: " + e);
+            } catch (IllegalAccessException e) {
+              System.err.println("Illegal access: " + e);
+            } catch (InvocationTargetException e) {
+              // e.printStackTrace();
+              // final StringWriter sw = new StringWriter();
+              // final PrintWriter pw = new PrintWriter(sw, true);
+              // e.getCause().printStackTrace(pw);
+              // String trace = sw.getBuffer().toString();
+              if (e.getCause() instanceof NoSuchElementException) { // becasue the exception occures in the Scanner we need to move up the stack trace
+                // get the line where that triggered the scanner's read exception in the invoked program
+                System.err.println("RuntimeError: java.util.NoSuchElementException: no more input\n\tat "+e.getCause().getStackTrace()[1].toString());
+              } else {
+                System.err.println("RuntimeError: "+e.getCause()+"\n\tat "+e.getCause().getStackTrace()[0].toString());
+              }
+            }
 
-          // try {
-          //     Runnable r = new Runnable() {
-          //         @Override
-          //         public void run() {
-                    try {
-                      fileManager.getClassLoader(null).loadClass(name).getDeclaredMethod("main", new Class[] { String[].class }).invoke(null, new Object[] { null });
-                    } catch (ClassNotFoundException e) {
-                      System.err.println("Class not found: " + e);
-                    } catch (NoSuchMethodException e) {
-                      System.err.println("No such method: " + e);
-                    } catch (IllegalAccessException e) {
-                      System.err.println("Illegal access: " + e);
-                    } catch (InvocationTargetException e) {
-                      System.err.println("RuntimeError: "+e.getTargetException());
-                    }
-                    try {
-                        fileObject.delete();
-                        fileManager.close();
-                        ResourceBundle.clearCache(ClassLoader.getSystemClassLoader()); // <--useless
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-              //     }
-              // };
-
-          //     Future<?> f = service.submit(r);
-
-          //     f.get(timeLimit, TimeUnit.MILLISECONDS);     // attempt the task for timelimit default 5 seconds
-          // }
-          // catch (final InterruptedException e) {
-          //   System.err.println("Thread Interrupted: " + e);
-          // }
-          // catch (final TimeoutException e) {
-          //   System.err.println("TimeoutException: Your program ran for more than "+timeLimit);
-          // }
-          // catch (final ExecutionException e) {
-          //   e.printStackTrace();
-          // }
-          // finally {
-          //     service.shutdown();
-          // }
+            try {
+                fileObject.delete();
+                fileManager.close();
+                ResourceBundle.clearCache(ClassLoader.getSystemClassLoader()); // <--useless
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

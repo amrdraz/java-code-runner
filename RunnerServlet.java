@@ -3,6 +3,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.io.OutputStream;
 
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -69,6 +74,7 @@ class ServletRoute extends HttpServlet
 
     private PrintStream out;
     private PrintStream err;
+    private InputStream in;
     private ByteArrayOutputStream stream;
 
     public ServletRoute()
@@ -79,6 +85,8 @@ class ServletRoute extends HttpServlet
         // System.out.println("Works");
       out = System.out;
       err = System.err;
+      in = System.in;
+      ThreadInputStream.replaceSystemIn();
       ThreadPrintStream.replaceSystemOut();
       ThreadPrintStream.replaceSystemErr();
     }
@@ -106,6 +114,14 @@ class ServletRoute extends HttpServlet
         if(request.getParameter("timeLimit")!=null) {
           timeLimit = Integer.parseInt(request.getParameter("timeLimit"));
         }
+        final String input;
+        if(request.getParameter("input")==null) {
+          input = "";
+        } else {
+          input = request.getParameter("input");
+        }
+
+        // print(input);
 
         // out.println(":--------Recived POST for "+name+"-------:");
         // out.println(code);
@@ -125,13 +141,17 @@ class ServletRoute extends HttpServlet
                   @Override
                   public void run() {
 
+        ByteArrayInputStream runnerIn =  new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));;
         ByteArrayOutputStream runnerOut = new ByteArrayOutputStream();
         ByteArrayOutputStream runnerErr = new ByteArrayOutputStream();
+
+        ((ThreadInputStream)System.in).setThreadIn(runnerIn);
         ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(runnerOut));
         ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(runnerErr));
 
         JavaRunner.compile(name,code);
 
+        ((ThreadInputStream)System.in).setThreadIn(in);
         ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(out));
         ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(err));
 

@@ -138,16 +138,20 @@ function runProc(args, cb) {
 
 /**
  * Run java program in TerminalRunner
- * @param  {String}   name    name of class
- * @param  {String}   program source code of JavaClass with public class [name]
+ * @param  {Object} options an object containing all prgram needed configuration
+ *                    - {String}   name    name of class
+ *                    - {String}   program source code of JavaClass with public class [name]
+ *                    - {String}   input   The program's input stream if needed
  * @param  {Function} cb      callback when complete
  */
-function runCMD(name, program, cb) {
+function runCMD(options, cb) {
     var args = ["-cp", ".", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "TerminalRunner"];
-    args.push(name);
-    args.push(program);
+    args.push(options.name);
+    args.push(options.program);
+    args.push(options.input);
+    args.push(options.runTimeout);
 
-    //delaying request if more then one hit so that the event loop has time to compute
+    // delaying request if more then one hit so that the event loop has time to compute
     if (running < 1) {
         running++;
         runProc(args, cb);
@@ -161,17 +165,21 @@ function runCMD(name, program, cb) {
 }
 
 /**
- * Run java program in server, which is singnificantly faster
- * @param  {String}   name    name of class
- * @param  {String}   program source code of JavaClass with public class [name]
+ * Run java program in server, which is singnificantly faster then CMD
+ * @param  {Object} options an object containing all prgram needed configuration
+ *                    - {String}   name    name of class
+ *                    - {String}   program source code of JavaClass with public class [name]
+ *                    - {String}   input   The program's input stream if needed
  * @param  {Function} cb      callback when complete
  */
-function runInServlet(name, program, cb, timeLimit) {
+function runInServlet(options, cb) {
     var timer;
+    // program to run
     var post_data = querystring.stringify({
-        'name': name,
-        'code': program,
-        'timeLimit':timeLimit||5000
+        'name': options.name,
+        'code': options.program,
+        'input': options.input||'',
+        'timeLimit':options.timeLimit||5000
     });
     // An object of options to indicate where to post to
     var post_options = {
@@ -252,16 +260,19 @@ var run = exports.run = function(code, options, cb) {
     var program = "";
     program += preClass;
     program += "public class " + name + " {";
-    program += "  public static void main(String args[]) {try {\n";
+    program += "  public static void main(String args[]) throws Exception {\n";
     program += "    " + code;
-    program += '  } catch (Exception e) {System.err.print("Exception line "+(e.getStackTrace()[0].getLineNumber())+" "+e);}}' +
-        "}";
+    // program += '  } catch (Exception e) {System.err.print("Exception line "+(e.getStackTrace()[0].getLineNumber())+" "+e);}}' +
+    program += "  }";
+    program += "}";
 
+    options.program = program;
+    options.name = name;
     // if servlet is not ready run code from TerminalRunner
     if (servletReady && !options.runInCMD) {
-        runInServlet(name, program, cb, options.timeLimit);
+        runInServlet(options, cb);
     } else {
-        runCMD(name, program, cb);
+        runCMD(options, cb);
     }
 };
 
