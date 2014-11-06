@@ -1,25 +1,39 @@
 {
-    "name": "java-runner",
-    "version": "0.3.0",
-    "author": "Amr Draz",
-    "repository": {
-        "type": "git",
-        "url": "git@github.com:amrdraz/java-runner.git"
-    },
-    "scripts": {
-        "test": "node_modules/.bin/mocha test -R spec --ui bdd"
-    },
-    "dependencies": {
-        "bluebird": "^2.3.0",
-        "lodash": "^2.4.1"
-    },
-    "engines": {
-        "node": ">=0.10.0"
-    },
-    "devDependencies": {
-        "mocha": "^1.20.1",
-        "chai": "^1.9.1",
-        "supertest": "^0.13.0",
-        "supertest-as-promised": "^1.0.0"
-    }
+  "name": "java-code-runner",
+  "version": "0.3.1",
+  "author": "Amr Draz",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:amrdraz/java-code-runner.git"
+  },
+  "scripts": {
+    "test": "mocha test -R spec --ui bdd"
+  },
+  "dependencies": {
+    "lodash": "^2.4.1"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "devDependencies": {
+    "mocha": "^1.20.1",
+    "chai": "^1.9.1",
+    "supertest": "^0.13.0",
+    "bluebird": "^2.3.0",
+    "supertest-as-promised": "^1.0.0"
+  },
+  "description": "This is a module for runinng Java from String inside a node server",
+  "bugs": {
+    "url": "https://github.com/amrdraz/java-code-runner/issues"
+  },
+  "homepage": "https://github.com/amrdraz/java-code-runner",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "java"
+  ],
+  "os" : [ "darwin", "linux" ],
+  "license": "MIT"
 }

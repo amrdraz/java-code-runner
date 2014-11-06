@@ -29,13 +29,15 @@ The server will return a statusCode 200 for GET request to `'/'`.
 
 The server will return a JSON object `{stout:String, sterr:String}` for POST request to `'/'`.
 
-The POST body should be {name:[nameOfClass], code:[ClassContent]}
+The POST body should be {name:[nameOfClass], code:[classContent]}
+you can also post an optional __input__ parameter for inpout stream and a __timeLimit__ long for setting a timelimit on running the program
 
 example in nodejs, you can build a similar request using [postman](https://chrome.google.com/webstore/detail/postman-rest-client/fdmmgilgnpjigdojojpjoooidkmcomcm?hl=en)
 
     var post_data = querystring.stringify({
         'name': 'Main',
-        'code': 'public class Main {public static void main (String [] args) { System.out.println("Hello World");}}'
+        'code': 'public class Main {public static void main (String [] args) { System.out.println("Hello World");}}',
+        input:"input stream"
     });
     // An object of options to indicate where to post to
     http.request({
@@ -59,5 +61,4 @@ This code is designed for UNIX system it may be incompatible with Windows, eg. I
 
 ###Things left to do
 
-Handle the case of infinit loops
-Look inot runing the java server as a docker container
+Look inot runing the java server as a docker container for security
