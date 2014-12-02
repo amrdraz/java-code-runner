@@ -6,9 +6,16 @@ public class Test {
     private final static int DEFAULT_SCORE=0;
 
     private static String hash=DEFAULT_HASH;
+    private static String code=DEFAULT_HASH;
 
     public static void setHash(String h) {
         hash = h;
+    }
+    public static void setCode(String c) {
+        code = c;
+    }
+    public static String getSolution() {
+        return code;
     }
     public static void resetTest() {
        Test.setHash(Test.DEFAULT_HASH);

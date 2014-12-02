@@ -199,7 +199,7 @@ function runInServlet(options, cb) {
         var responseString = '';
 
         res.on('data', function(data) {
-            clearTimeout(timer);
+            // clearTimeout(timer);
             data = JSON.parse(data);
             cb(null, data.stout, data.sterr);
         });
@@ -216,9 +216,9 @@ function runInServlet(options, cb) {
     post_req.on('error', function(e) {
         cb(e);
     });
-    timer = setTimeout(function () {
-        cb(new Error("TimeoutException: Your program ran for more than "+runTimeout));
-    },runTimeout);
+    // timer = setTimeout(function () {
+    //     cb(new Error("TimeoutException: Your program ran for more than "+runTimeout));
+    // },runTimeout);
     post_req.write(post_data);
     post_req.end();
 }
@@ -301,6 +301,7 @@ var test = exports.test = function(code, test, options, cb) {
             'System.setOut(new PrintStream($userOut));\n' +
             'System.setErr(new PrintStream($userErr));\n' +
             'Test.setHash("' + hash + '");' +
+            'Test.setCode("' + code.replace(/\"/g, "\\\"") + '");' +
             (opt.preCode || '');
         opt.postCode = (opt.postCode || '') + '\n' +
             'System.setOut(_$sysOut);' +
