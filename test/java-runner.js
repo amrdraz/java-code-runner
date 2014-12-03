@@ -207,9 +207,9 @@ describe('Java runner', function() {
 
         it('should run multiple simple java prgrams', function(done) {
             this.timeout(20000);
-            Promise.map(new Array(40), function(x, i) {
+            Promise.map(new Array(10), function(x, i) {
                 return new Promise(function(resolve, reject) {
-                    setTimeout(function() {
+                    // setTimeout(function() {
                         var start = new Date().getTime();
                         runner.run('System.out.print("Hello");System.out.print("World");', {
                             debug_number: i
@@ -225,7 +225,7 @@ describe('Java runner', function() {
                             console.log('ran in ' + time + 'ms');
                             resolve();
                         });
-                    }, i * 40); //simulate trafic
+                    // }, i * 40); //simulate trafic
                 });
             }).then(function() {
                 done();
@@ -302,6 +302,9 @@ describe('Java runner', function() {
                         name: 'TestMain',
                         exp: 1
                     }, function(err, report, stout, sterr) {
+                        console.log('out',stout);
+                        console.log('err',sterr);
+                        console.log('report',report);
                         if (err) {
                             return reject(err);
                         }
@@ -329,4 +332,6 @@ describe('Java runner', function() {
             });
         });
     });
+
+
 });

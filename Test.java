@@ -6,7 +6,7 @@ public class Test {
     private final static int DEFAULT_SCORE=0;
 
     private static String hash=DEFAULT_HASH;
-    private static String code=DEFAULT_HASH;
+    private static String code="";
 
     public static void setHash(String h) {
         hash = h;
