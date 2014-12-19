@@ -1,13 +1,13 @@
 {
   "name": "java-code-runner",
-  "version": "0.3.2",
+  "version": "0.3.21",
   "author": "Amr Draz",
   "repository": {
     "type": "git",
     "url": "git@github.com:amrdraz/java-code-runner.git"
   },
   "scripts": {
-    "test": "mocha test -R spec --ui bdd"
+    "test": "node_modules/.bin/mocha test -R spec --ui bdd"
   },
   "dependencies": {
     "lodash": "^2.4.1"
