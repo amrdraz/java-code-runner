@@ -88,7 +88,7 @@ public class JavaRunner {
         /*Prepare any compilation options to be used during compilation*/
         //In this example, we are asking the compiler to place the output files under bin folder.
         List<String> compileOptions = new ArrayList<String>();
-        // compileOptions.addAll(Arrays.asList("-classpath", System.getProperty("java.class.path")));
+        compileOptions.addAll(Arrays.asList("-classpath", System.getProperty("java.class.path")));
         // Iterable<String> compilationOptionss = Arrays.asList(compileOptions);
  
         /*Create a diagnostic controller, which holds the compilation problems*/

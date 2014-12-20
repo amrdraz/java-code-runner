@@ -242,10 +242,6 @@ var run = exports.run = function(code, options, cb) {
         options = options || {};
     }
 
-    var pre = (options.preCode || '').replace(/\/\/.*$/gm, '').replace(/\r?\n|\r/g, ' ');
-    var post = (options.postCode || '');
-    var name = ((options.name && classCase(options.name)) || "Main") + (options.debug_number || ''); //+Date.now()+""+_.random(0, 2000000); // workaround if all else fails
-
     var preClass = '';
     // <comma-separated-default-imports>        (default: none)
     if (options.di) {
@@ -253,27 +249,25 @@ var run = exports.run = function(code, options, cb) {
             return s + 'import ' + i + ';';
         }, '');
     }
+    options.inputs = options.inputs || [];
+
+    var inp = options.inputs.length>0?options.inputs.join(";")+';':'';
+    var pre = (options.preCode || '').replace(/\/\/.*$/gm, '').replace(/\r?\n|\r/g, ' ');
+    var name = options.name = classCase(options.name || "Main") + (options.debug_number || '');
 
     // code to run
-    code = pre + '\n' + code + '\n' + post;
+    code = inp + '\n' + code + '\n';
 
     var program = "";
     program += preClass;
-    program += "public class " + name + " {";
-    program += "  public static void main(String args[]) throws Exception {\n";
+    program += "public class "+name+" {";
+    program += "  public static void main(String args[]) throws Exception {";
     program += "    " + code;
     // program += '  } catch (Exception e) {System.err.print("Exception line "+(e.getStackTrace()[0].getLineNumber())+" "+e);}}' +
     program += "  }";
     program += "}";
 
-    options.program = program;
-    options.name = name;
-    // if servlet is not ready run code from TerminalRunner
-    if (servletReady && !options.runInCMD) {
-        runInServlet(options, cb);
-    } else {
-        runCMD(options, cb);
-    }
+    runClass(program, options, cb);
 };
 
 /**
@@ -289,44 +283,62 @@ var test = exports.test = function(code, test, options, cb) {
     if(options.timeLimit && options.timeLimit<0) cb(new Error("TimeLimit can not be negative")); 
     if (!options.exp) cb(new Error('challange must have exp'));
     var hash = _.random(0, 200000000);
-    var opt = _.clone(options);
-    opt.runInCMD = opt.runInCMD || !servletReady;
+    options.runInCMD = options.runInCMD || !servletReady;
+    options.inputs = options.inputs || [];
+
+    var pre = ''+
+        'final ByteArrayOutputStream $userOut = new ByteArrayOutputStream();\n' +
+        'final ByteArrayOutputStream $userErr = new ByteArrayOutputStream();\n';
+    var post = '';
     //capture sys streams and set uniq test hash
     // make sure to acomidate for both threaded and none
-    if(opt.runInCMD) {
-         opt.preCode = 'final ByteArrayOutputStream $userOut = new ByteArrayOutputStream();\n' +
-            'final ByteArrayOutputStream $userErr = new ByteArrayOutputStream();\n' +
-            'final PrintStream _$sysOut = System.out;\n' +
-            'final PrintStream _$sysErr = System.err;\n' +
+    if(options.runInCMD) {
+         pre = pre +
+            'PrintStream _out = System.out'+
+            'PrintStream _err = System.err'+
             'System.setOut(new PrintStream($userOut));\n' +
             'System.setErr(new PrintStream($userErr));\n' +
-            'Test.setHash("' + hash + '");' +
-            'Test.setCode("' + code.replace(/\"/g, "\\\"") + '");' +
-            (opt.preCode || '');
-        opt.postCode = (opt.postCode || '') + '\n' +
-            'System.setOut(_$sysOut);' +
-            'System.setErr(_$sysErr);' + '\n' +
-            test+
-            'Test.resetTest();';
+            'Test $test = new Test("' + hash + '");' ;
+            '$test.setSolution("' + code.replace(/\"/g, "\\\"") + '");';
+        post = '\n' +
+            'System.setOut(_out);' +
+            'System.setErr(_err);' + '\n';
     } else {
-        opt.preCode = 'final ByteArrayOutputStream $userOut = new ByteArrayOutputStream();\n' +
-            'final ByteArrayOutputStream $userErr = new ByteArrayOutputStream();\n' +
-            'final PrintStream _$sysOut = ((ThreadPrintStream)System.out).getThreadOut();\n' +
-            'final PrintStream _$sysErr = ((ThreadPrintStream)System.out).getThreadOut();\n' +
+        pre = pre +
+            'PrintStream _out = ((ThreadPrintStream)System.out).getThreadOut();'+
+            'PrintStream _err = ((ThreadPrintStream)System.err).getThreadOut();'+
             '((ThreadPrintStream)System.out).setThreadOut(new PrintStream($userOut));\n' +
             '((ThreadPrintStream)System.err).setThreadOut(new PrintStream($userErr));\n' +
-            'Test.setHash("' + hash + '");' +
-            (opt.preCode || '');
-        opt.postCode = (opt.postCode || '') + '\n' +
-            '((ThreadPrintStream)System.out).setThreadOut(new PrintStream(_$sysOut));\n' +
-            '((ThreadPrintStream)System.err).setThreadOut(new PrintStream(_$sysErr));\n' +
-            test+
-            'Test.resetTest();';
+            'Test $test = new Test("' + hash + '");' ;
+            '$test.setSolution("' + code.replace(/\"/g, "\\\"") + '");';
+        post = '\n' +
+            '((ThreadPrintStream)System.out).setThreadOut(_out);\n' +
+            '((ThreadPrintStream)System.err).setThreadOut(_err);\n' +
+            'System.out.print($test.getTestOut().toString());\n';
     }
+    var name = options.name = classCase(options.name || "Main") + (options.debug_number || '');
 
-    opt.di = (opt.di || '') + (opt.di ? ',' : '') + 'java.io.ByteArrayOutputStream,java.io.PrintStream';
+    var program = "";
+    program += "import java.io.ByteArrayOutputStream;import java.io.PrintStream;";
+    program += "public class "+name+" {";
+    program += "  public static void $main("+ options.inputs.join(",")+") throws Exception {\n";
+    program += "    "+code;
+    program += "  }";
+    program += "  public static void main(String args[]) throws Exception {";
+    program += "    " + pre;
+    // program += "    try {";
+    program += "    " + test;
+    // program += "    } catch (Exception e) {";
+    // program += '      _err.println(e);';
+    // program += '      System.err.println("RuntimeError: "+e.getCause()+"\\n\\tat "+e.getCause().getStackTrace()[0].toString());';
+    // program += "    } finally {";
+    program += "      " + post;
+    // program += '      _out.println("an error occured");';
+    // program += "    }";
+    program += "  }";
+    program += "}";
 
-    run(code, opt, function(err, stout, sterr) {
+    runClass(program, options, function(err, stout, sterr) {
         if (err && !sterr) return cb(err);
         sterr && console.log(sterr);
 
@@ -352,75 +364,21 @@ var test = exports.test = function(code, test, options, cb) {
     });
 };
 
-
-
-/**
- * Runs a String of java code as if it is inside a method
- * @param  {String} code    Java code to run
- * @param  {Object} options some flags that can wrap the running code
- *                          rt specifiy a return type default is void
- *                          pn comma seperated paramater names
- *                          pt comma seperated paramater types
- *                          te comma seperated throw exception types
- *                          di comma seperated default imports
- *                          values space seperated values for the paramaters
- *                          paramaters names,types and values need to match count
- */
-var runJavaAsScript = exports.runJavaAsScript = function(code, options, cb) {
-    if (typeof options === 'function') {
+var runClass = exports.runClass = function(code, options, cb) {
+     if (typeof options === 'function') {
         cb = options;
         options = {};
     } else {
         options = options || {};
     }
-
-    var cmd = ['java -cp ' + __dirname + ':' + __dirname + '/janino/commons-compiler.jar:' + __dirname + '/janino/janino.jar ScriptRunner'];
-    var pre = (options.preCode || '').replace(/\/\/.*$/gm, ''); //.replace(/\r?\n|\r/g, ' ');
-    var post = (options.postCode || '');
-
-    // <return-type>                            (default: void)
-    options.rt && cmd.push('-rt', options.rt);
-    // <comma-separated-parameter-names>        (default: none)
-    options.pn && cmd.push('-pn', options.pn);
-    // <comma-separated-parameter-types>        (default: none)
-    options.pt && cmd.push('-pt', options.pt);
-    // <comma-separated-thrown-exception-types> (default: none)
-    options.te && cmd.push('-te', options.te);
-    // <comma-separated-default-imports>        (default: none)
-    options.di && cmd.push('-di', options.di);
-    // code to run
-    code = pre + code + '\n' + post;
-    // escape " and $ because of terminal
-    code = code.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-    // console.log(code);
-    cmd.push('"' + code + '"');
-
-    // value to pass if paramaters are used
-    options.values && cmd.push(options.values);
-
-    // console.log(cmd.join(' '));
-    cp.exec(cmd.join(" "), {
-        timeout: 10000
-    }, cb);
-};
-
-
-/**
- * Run a Strign of java code as if it is inside the body of a class
- * @param  {String} code java code to run
- * @param  {String} args a string of arguments to pass to the main method seperated by space
- */
-var runJavaAsClassBody = exports.runJavaAsClassBody = function(code, args, cb) {
-    var cmd = ['java -cp ' + __dirname + ':' + __dirname + '/janino/commons-compiler.jar:' + __dirname + '/janino/janino.jar org.codehaus.commons.compiler.samples.ClassBodyDemo'];
-    // code to run      
-    cmd.push('\'public static void main (String [] args) {\n' + code + '\'\n}');
-    // args to pass to main of class
-    if (args) {
-        cmd.push(args);
-        cb = args;
+    options.name = options.name || code.match(/public\s+class\s+(\w+)/).pop();
+    options.program = code;
+    // if servlet is not ready run code from TerminalRunner
+    if (servletReady && !options.runInCMD) {
+        runInServlet(options, cb);
+    } else {
+        runCMD(options, cb);
     }
-
-    cp.exec(cmd.join(" "), cb);
 };
 
 /**

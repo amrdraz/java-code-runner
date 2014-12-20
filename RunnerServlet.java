@@ -92,7 +92,7 @@ class ServletRoute extends HttpServlet
     }
 
     public void print(String s) {
-      out.print(stream);
+      out.print(s);
     }
 
     @Override
@@ -152,8 +152,8 @@ class ServletRoute extends HttpServlet
         JavaRunner.compile(name,code);
 
         ((ThreadInputStream)System.in).setThreadIn(in);
-        ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(out));
-        ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(err));
+        ((ThreadPrintStream)System.out).setThreadOut(out);
+        ((ThreadPrintStream)System.err).setThreadOut(err);
 
         try {
           res.put("stout", runnerOut.toString());
