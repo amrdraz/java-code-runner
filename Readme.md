@@ -23,7 +23,7 @@ Run server
 
     java -cp .:servlet-api-2.5.jar:jetty-all-7.0.2.v20100331.jar RunnerServlet
 
-The default port is `8080`
+The default port is `3678`
 
 The server will return a statusCode 200 for GET request to `'/'`.
 
@@ -42,7 +42,7 @@ example in nodejs, you can build a similar request using [postman](https://chrom
     // An object of options to indicate where to post to
     http.request({
         host: '127.0.0.1',
-        port: 8080,
+        port: 3678,
         path: '',
         method: 'POST',
         headers: {
@@ -58,6 +58,14 @@ java dependencies are in the .java-dependency file
 
 This code is designed for UNIX system it may be incompatible with Windows, eg. I use the ':' to speerate classpath
 
+
+###node wraper
+The module's index.js file exposes 3 methods
+- `run`
+- `test`
+- `runClass`
+
+see tests for how they work.
 
 ###Things left to do
 
