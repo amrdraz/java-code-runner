@@ -25,6 +25,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.ExecutionException;
@@ -105,7 +106,7 @@ class ServletRoute extends HttpServlet
         response.getWriter().print("RunnerServlet");
     }
 
-    @Override
+    @SuppressWarnings("deprecation")
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
     {
         String code = request.getParameter("code");
@@ -134,63 +135,47 @@ class ServletRoute extends HttpServlet
         Map<String,String> res = new HashMap<String,String>();
 
         // start executor in order to timeout
-        ExecutorService service = Executors.newSingleThreadExecutor();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Thread thread = new Thread(new Runnable() {
+         public void run() {
+            ByteArrayInputStream runnerIn =  new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));;
+            ByteArrayOutputStream runnerOut = new ByteArrayOutputStream();
+            ByteArrayOutputStream runnerErr = new ByteArrayOutputStream();
 
-          try {
-              Runnable r = new Runnable() {
-                  @Override
-                  public void run() {
+            ((ThreadInputStream)System.in).setThreadIn(runnerIn);
+            ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(runnerOut));
+            ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(runnerErr));
 
-        ByteArrayInputStream runnerIn =  new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));;
-        ByteArrayOutputStream runnerOut = new ByteArrayOutputStream();
-        ByteArrayOutputStream runnerErr = new ByteArrayOutputStream();
+            JavaRunner.compile(name,code);
 
-        ((ThreadInputStream)System.in).setThreadIn(runnerIn);
-        ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(runnerOut));
-        ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(runnerErr));
+            ((ThreadInputStream)System.in).setThreadIn(in);
+            ((ThreadPrintStream)System.out).setThreadOut(out);
+            ((ThreadPrintStream)System.err).setThreadOut(err);
 
-        JavaRunner.compile(name,code);
+            try {
+              res.put("stout", runnerOut.toString());
+              res.put("sterr", runnerErr.toString());
+              response.getWriter().print(JSON.toString(res));
+            } catch (Exception  e) {
+              e.printStackTrace();
+            }
 
-        ((ThreadInputStream)System.in).setThreadIn(in);
-        ((ThreadPrintStream)System.out).setThreadOut(out);
-        ((ThreadPrintStream)System.err).setThreadOut(err);
-
+          }
+        });
+        thread.start();
         try {
-          res.put("stout", runnerOut.toString());
-          res.put("sterr", runnerErr.toString());
-          response.getWriter().print(JSON.toString(res));
-        } catch (Exception  e) {
-          e.printStackTrace();
-        }
-
-                  }
-              };
-
-              Future<?> f = service.submit(r);
-
-              f.get(timeLimit, TimeUnit.MILLISECONDS);     // attempt the task for timelimit default 5 seconds
-          }
-          catch (InterruptedException e) {
-            err.println("Thread Interrupted: " + e);
-          }
-          catch (TimeoutException e) {
+          thread.join(timeLimit);
+          if (thread.isAlive()) {
+            thread.stop();
+            ((ThreadInputStream)System.in).setThreadIn(in);
+            ((ThreadPrintStream)System.out).setThreadOut(out);
+            ((ThreadPrintStream)System.err).setThreadOut(err);
             res.put("stout", "");
             res.put("sterr", "TimeoutException: Your program ran for more than "+timeLimit+"ms");
             response.getWriter().print(JSON.toString(res));
           }
-          catch (final ExecutionException e) {
-            e.printStackTrace();
-          }
-          catch (Exception e) {
-            e.printStackTrace();
-          }
-          finally {
-            service.shutdown();
-          }
-
-        // out.println(":"+name+":"+out[0].toString()+":----:");
-        // out.println(":--------Sending response for "+name+"-------:");
-
-        
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
     }
 }

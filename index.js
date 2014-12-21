@@ -15,7 +15,6 @@ var defaultPort = 3678; // default port picked it at random
 var servletPort;
 var servlet;
 
-
 // get an empty port for the java server
 function getPort(cb) {
     var port = defaultPort;
@@ -349,9 +348,11 @@ var test = exports.test = function(code, test, options, cb) {
             failures: [],
             tests: []
         };
-        var tests = stout.match(new RegExp("<\\[" + hash + "\\]>(.*)<\\[" + hash + "\\]>", "g")) || [];
+        var reg = new RegExp("<\\[" + hash + "\\]>([\\s\\S]*)<\\[" + hash + "\\]>", "g");
+        var tests = stout.match(reg) || [];
         if (!_.isEmpty(tests)) {
-            tests = report.tests = JSON.parse(('[' + tests.join(',') + ']').replace(new RegExp("<\\[" + hash + "\\]>", 'g'), ''));
+            tests = ('[' + tests.join(',') + ']').replace(new RegExp("<\\[" + hash + "\\]>", 'g'), '').replace(/\n/g, "\\n");
+            tests = report.tests = JSON.parse(tests);
             report.passes = _.filter(tests, 'pass');
             report.failures = _.reject(tests, 'pass');
             report.score = _.reduce(tests, function(sum, t) {
