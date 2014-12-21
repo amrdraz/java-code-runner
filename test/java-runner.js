@@ -349,6 +349,23 @@ describe('Java runner', function() {
             });
         });
 
+        it('should run $main with input and return multiple tests', function(done) {
+            runner.test("System.out.println(x+1);", 'int runs = 5; for(int i =0;i<runs;i++) {$userOut.reset(); int t = (int)(Math.random()*1000); $main(t); $test.expect($userOut.toString(), (t+1)+"\\n", 2);  }', {
+                name: 'TestMultiple',
+                exp: 10,
+                inputs:['int x']
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                console.log(report);
+                expect(report.passed).to.be.true;
+                expect(report.passes.length).to.equal(5);
+                expect(report.score).to.equal(10);
+                done();
+            });
+        });
+
         it('should timout if more then timelimit', function(done) {
             runner.run('long i = 100000000; while(i>0){if(i==30000){i+=3000;}i--;} System.out.print(i);', {
                 timeLimit: 800

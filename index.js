@@ -322,7 +322,7 @@ var test = exports.test = function(code, test, options, cb) {
     program += "public class "+name+" {";
     program += "  public static void $main("+ options.inputs.join(",")+") throws Exception {\n";
     program += "    "+code;
-    program += "  }";
+    program += "  \n}";
     program += "  public static void main(String args[]) throws Exception {";
     program += "    " + pre;
     // program += "    try {";
@@ -348,10 +348,11 @@ var test = exports.test = function(code, test, options, cb) {
             failures: [],
             tests: []
         };
-        var reg = new RegExp("<\\[" + hash + "\\]>([\\s\\S]*)<\\[" + hash + "\\]>", "g");
+        var reg = new RegExp("<\\[" + hash + "\\]>((?!<\\["+hash+"\\]>)[\\s\\S])+<\\[" + hash + "\\]>", "g");
         var tests = stout.match(reg) || [];
         if (!_.isEmpty(tests)) {
-            tests = ('[' + tests.join(',') + ']').replace(new RegExp("<\\[" + hash + "\\]>", 'g'), '').replace(/\n/g, "\\n");
+            tests = ('[' + tests.join(',') + ']').replace(/\n/g, "\\n");
+            tests = tests.replace(new RegExp("<\\[" + hash + "\\]>", 'g'), '');
             tests = report.tests = JSON.parse(tests);
             report.passes = _.filter(tests, 'pass');
             report.failures = _.reject(tests, 'pass');
