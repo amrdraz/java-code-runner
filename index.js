@@ -350,6 +350,7 @@ var test = exports.test = function(code, test, options, cb) {
         };
         var reg = new RegExp("<\\[" + hash + "\\]>((?!<\\["+hash+"\\]>)[\\s\\S])+<\\[" + hash + "\\]>", "g");
         var tests = stout.match(reg) || [];
+        // stout = stout.replace(reg, "");
         if (!_.isEmpty(tests)) {
             tests = ('[' + tests.join(',') + ']').replace(/\n/g, "\\n");
             tests = tests.replace(new RegExp("<\\[" + hash + "\\]>", 'g'), '');
