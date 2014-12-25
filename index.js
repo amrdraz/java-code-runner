@@ -294,25 +294,17 @@ var test = exports.test = function(code, test, options, cb) {
     if(options.runInCMD) {
          pre = pre +
             'PrintStream _out = System.out'+
-            'PrintStream _err = System.err'+
             'System.setOut(new PrintStream($userOut));\n' +
-            'System.setErr(new PrintStream($userErr));\n' +
-            'Test $test = new Test("' + hash + '");' ;
-            '$test.setSolution("' + code.replace(/\"/g, "\\\"") + '");';
+            'Test $test = new Test("' + hash + '", "' + code.replace(/\"/g, "\\\"") + '");';
         post = '\n' +
-            'System.setOut(_out);' +
-            'System.setErr(_err);' + '\n';
+            'System.setOut(_out);' + '\n';
     } else {
         pre = pre +
             'PrintStream _out = ((ThreadPrintStream)System.out).getThreadOut();'+
-            'PrintStream _err = ((ThreadPrintStream)System.err).getThreadOut();'+
             '((ThreadPrintStream)System.out).setThreadOut(new PrintStream($userOut));\n' +
-            '((ThreadPrintStream)System.err).setThreadOut(new PrintStream($userErr));\n' +
-            'Test $test = new Test("' + hash + '");' ;
-            '$test.setSolution("' + code.replace(/\"/g, "\\\"") + '");';
+            'Test $test = new Test("' + hash + '", "' + code.replace(/\"/g, "\\\"") + '");' ;
         post = '\n' +
             '((ThreadPrintStream)System.out).setThreadOut(_out);\n' +
-            '((ThreadPrintStream)System.err).setThreadOut(_err);\n' +
             'System.out.print($test.getTestOut().toString());\n';
     }
     var name = options.name = classCase(options.name || "Main") + (options.debug_number || '');

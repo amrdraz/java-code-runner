@@ -365,6 +365,45 @@ describe('Java runner', function() {
                 done();
             });
         });
+        
+        it('should be able to print in test stout', function(done) {
+            runner.test(code, '$test.print("Hello");', {
+                name: 'TestMain',
+                exp: 1
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                expect(stout).to.equal("Hello");
+                done();
+            });
+        });
+
+        it('should have access to getCode', function(done) {
+            runner.test(code, '$test.print($test.getCode());', {
+                name: 'TestMain',
+                exp: 1
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                expect(stout).to.equal(code);
+                done();
+            });
+        });
+
+        it('should be able to test using $test.contains', function(done) {
+            runner.test(code, '$test.contains($test.getCode(), "char c =");', {
+                name: 'TestMain',
+                exp: 1
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                expect(report.passed).to.be.true;
+                done();
+            });
+        });
 
         it('should timout if more then timelimit', function(done) {
             runner.run('long i = 100000000; while(i>0){if(i==30000){i+=3000;}i--;} System.out.print(i);', {

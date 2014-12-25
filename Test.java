@@ -8,7 +8,7 @@ public class Test {
     private final static int DEFAULT_SCORE=0;
 
     private String hash=DEFAULT_HASH;
-    private String solution="";
+    private String code;
     
     private ByteArrayOutputStream testOut;
     private PrintStream out;
@@ -21,6 +21,11 @@ public class Test {
     public Test(String h) {
         this();
         hash = h;
+    }
+
+    public Test(String h, String c) {
+        this(h);
+        code = c;
     }
 
     public void println(String s) {
@@ -39,11 +44,11 @@ public class Test {
     public void setHash(String h) {
         hash = h;
     }
-    public void setSolution(String c) {
-        solution = c;
+    public String getCode() {
+        return this.code;
     }
-    public String getSolution() {
-        return solution;
+    public void setCode(String s) {
+        code = s;
     }
 
     private void out(boolean pass,String msg, int point, String tag) {
