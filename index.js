@@ -295,14 +295,14 @@ var test = exports.test = function(code, test, options, cb) {
          pre = pre +
             'PrintStream _out = System.out'+
             'System.setOut(new PrintStream($userOut));\n' +
-            'Test $test = new Test("' + hash + '", "' + code.replace(/\"/g, "\\\"") + '");';
+            'Test $test = new Test("' + hash + '", ' + JSON.stringify(code) + ');\n';
         post = '\n' +
             'System.setOut(_out);' + '\n';
     } else {
         pre = pre +
             'PrintStream _out = ((ThreadPrintStream)System.out).getThreadOut();'+
             '((ThreadPrintStream)System.out).setThreadOut(new PrintStream($userOut));\n' +
-            'Test $test = new Test("' + hash + '", "' + code.replace(/\"/g, "\\\"") + '");' ;
+            'Test $test = new Test("' + hash + '", ' + JSON.stringify(code) + ');\n' ;
         post = '\n' +
             '((ThreadPrintStream)System.out).setThreadOut(_out);\n' +
             'System.out.print($test.getTestOut().toString());\n';
@@ -342,9 +342,9 @@ var test = exports.test = function(code, test, options, cb) {
         };
         var reg = new RegExp("<\\[" + hash + "\\]>((?!<\\["+hash+"\\]>)[\\s\\S])+<\\[" + hash + "\\]>", "g");
         var tests = stout.match(reg) || [];
-        // stout = stout.replace(reg, "");
         if (!_.isEmpty(tests)) {
-            tests = ('[' + tests.join(',') + ']').replace(/\n/g, "\\n");
+            console.log(stout);
+            tests = ('[' + tests.join(',') + ']');
             tests = tests.replace(new RegExp("<\\[" + hash + "\\]>", 'g'), '');
             tests = report.tests = JSON.parse(tests);
             report.passes = _.filter(tests, 'pass');

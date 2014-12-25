@@ -54,7 +54,7 @@ public class Test {
     private void out(boolean pass,String msg, int point, String tag) {
         String str = "<["+hash+"]>{"+
             "\"pass\":"+pass+
-            ",\"message\":\""+msg+"\""+
+            ",\"message\":\""+msg.replaceAll("\\\\(.)", "\\\\\\\\$1").replaceAll("\"", "\\\\\"").replaceAll("\n", "\\\\\\n")+"\""+
             ",\"score\":"+point;
         if(tag!=null) {
             str+=",\"tag\":\""+tag+"\"";

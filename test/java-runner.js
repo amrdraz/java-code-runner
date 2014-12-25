@@ -277,8 +277,8 @@ describe('Java runner', function() {
     });
 
     describe('index#test', function() {
-        var code = 'char c =\'a\'; int a = 40, b = 20; System.out.print("a - b = " + (a - b));';
-        var test = '$main();$test.expect($userOut.toString(),"a - b = 20");';
+        var code = 'char c =\'a\'; \n int a = 40, b = 20; System.out.print("a - b = " + (a - b));';
+        var test = '$main();\n$test.expect($userOut.toString(),"a - b = 20");';
 
         it('should run code against test', function(done) {
             runner.test(code, test, {
@@ -401,6 +401,19 @@ describe('Java runner', function() {
                     return done(err);
                 }
                 expect(report.passed).to.be.true;
+                done();
+            });
+        });
+
+        it('should return escaped regex when $test.match fail', function(done) {
+            runner.test(code, '$test.matches($test.getCode(), "char \\\\sc =");', {
+                name: 'TestMain',
+                exp: 1
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                expect(report.passed).to.be.false;
                 done();
             });
         });
