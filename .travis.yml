@@ -2,5 +2,7 @@ language: java
 jdk:
     - oraclejdk8
 node_js: "0.10"
-install: "npm install"
+install:
+    - apt-get install ant
+    - npm install
 script: "npm test"
