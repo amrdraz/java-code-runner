@@ -52,7 +52,6 @@ describe('Java runner', function() {
                 })
                 .end(function(err, res) {
                     if (err) return done(err);
-                    console.log(res.body.sterr);
                     expect(res.body.stout).to.equal(input);
                     done();
                 });
@@ -72,7 +71,6 @@ describe('Java runner', function() {
                         })
                         .end(function(err, res) {
                             if (err) return reject(err);
-                            console.log(res.body.stout);
                             expect(res.body.stout).to.equal('Hello World' + i);
                             resolve(true);
                         });
@@ -99,7 +97,6 @@ describe('Java runner', function() {
                         })
                         .end(function(err, res) {
                             if (err) return reject(err);
-                            console.log(res.body.stout);
                             expect(res.body.stout).to.equal(input);
                             resolve(true);
                         });
@@ -121,7 +118,6 @@ describe('Java runner', function() {
                 })
                 .end(function(err, res) {
                     if (err) return done(err);
-                    console.log(res.body.sterr);
                     expect(res.body.sterr).to.exist;
                     done();
                 });
@@ -138,7 +134,6 @@ describe('Java runner', function() {
                 })
                 .end(function(err, res) {
                     if (err) return done(err);
-                    console.log(res.body.sterr);
                     expect(res.body.sterr).to.exist;
                     done();
                 });
@@ -163,8 +158,8 @@ describe('Java runner', function() {
     describe('index#run', function() {
         it('should run java', function(done) {
             runner.run('System.out.print("Hello");', function(err, stout, sterr) {
-                stout && console.log(stout);
-                sterr && console.error(sterr);
+                // stout && console.log(stout);
+                // sterr && console.error(sterr);
                 if (err) return done(err);
                 expect(stout).to.equal('Hello');
                 done();
@@ -173,14 +168,14 @@ describe('Java runner', function() {
 
         it('should output sterr for compile errors', function(done) {
             runner.run('System.out.print("Hello")', function(err, stout, sterr) {
-                sterr && console.error(sterr);
+                // sterr && console.error(sterr);
                 expect(sterr).length.gt(0);
                 done();
             });
         });
         it('should output sterr for compile errors', function(done) {
             runner.run('system.out.print("Hello");', function(err, stout, sterr) {
-                sterr && console.error(sterr);
+                // sterr && console.error(sterr);
                 expect(sterr).length.gt(0);
                 done();
             });
@@ -188,7 +183,7 @@ describe('Java runner', function() {
 
         it('should output sterr for runtime errors', function(done) {
             runner.run('int a = 10/0;', function(err, stout, sterr) {
-                sterr && console.error(sterr);
+                // sterr && console.error(sterr);
                 expect(sterr).to.exist;
                 done();
             });
@@ -198,8 +193,8 @@ describe('Java runner', function() {
             var input = "Hello InputStream";
             runner.run('Scanner sc = new Scanner(System.in);System.out.print(sc.nextLine());', {di:'java.util.Scanner',input:input}, function(err, stout, sterr) {
                 if (err) return done(err);
-                stout && console.log(stout);
-                sterr && console.error(sterr);
+                // stout && console.log(stout);
+                // sterr && console.error(sterr);
                 expect(stout).to.equal(input);
                 done();
             });
@@ -210,19 +205,19 @@ describe('Java runner', function() {
             Promise.map(new Array(10), function(x, i) {
                 return new Promise(function(resolve, reject) {
                     // setTimeout(function() {
-                        var start = new Date().getTime();
+                        // var start = new Date().getTime();
                         runner.run('System.out.print("Hello");System.out.print("World");', {
                             debug_number: i
                         }, function(err, stout, sterr) {
                             if (err) {
-                                console.error(err + '\n==========================\n');
+                                // console.error(err + '\n==========================\n');
                                 reject(err);
                             }
-                            sterr && console.error(sterr);
+                            // sterr && console.error(sterr);
                             expect(stout).to.equal('HelloWorld');
-                            var end = new Date().getTime();
-                            var time = end - start;
-                            console.log('ran in ' + time + 'ms');
+                            // var end = new Date().getTime();
+                            // var time = end - start;
+                            // console.log('ran in ' + time + 'ms');
                             resolve();
                         });
                     // }, i * 40); //simulate trafic
@@ -235,11 +230,11 @@ describe('Java runner', function() {
         it('shoudl run source code I submit but will fail because it will run last Main.java', function(done) {
             runner.run('System.out.print("Hello there ");System.out.print("World");', function(err, stout, sterr) {
                 if (err) {
-                    console.error(err + '\n==========================\n');
+                    // console.error(err + '\n==========================\n');
                     reject(err);
                 }
-                stout && console.log(stout);
-                sterr && console.error(sterr);
+                // stout && console.log(stout);
+                // sterr && console.error(sterr);
                 expect(stout).to.equal("Hello there World");
                 done();
             });
@@ -250,11 +245,11 @@ describe('Java runner', function() {
                 name: 'Main2'
             }, function(err, stout, sterr) {
                 if (err) {
-                    console.error(err + '\n==========================\n');
+                    // console.error(err + '\n==========================\n');
                     reject(err);
                 }
-                stout && console.log(stout);
-                sterr && console.error(sterr);
+                // stout && console.log(stout);
+                // sterr && console.error(sterr);
                 expect(stout).to.equal("Hello there World");
                 done();
             });
@@ -265,11 +260,11 @@ describe('Java runner', function() {
                 name: 'Main2'
             }, function(err, stout, sterr) {
                 if (err) {
-                    console.error(err + '\n==========================\n');
+                    // console.error(err + '\n==========================\n');
                     reject(err);
                 }
-                stout && console.log(stout);
-                sterr && console.error(sterr);
+                // stout && console.log(stout);
+                // sterr && console.error(sterr);
                 expect(stout).to.equal("Hello there");
                 done();
             });
@@ -303,9 +298,9 @@ describe('Java runner', function() {
                         exp: 1,
                         debug_number: i
                     }, function(err, report, stout, sterr) {
-                        console.log('out',stout);
-                        console.log('err',sterr);
-                        console.log('report',report);
+                        // console.log('out',stout);
+                        // console.log('err',sterr);
+                        // console.log('report',report);
                         if (err) {
                             return reject(err);
                         }
@@ -343,7 +338,7 @@ describe('Java runner', function() {
                     return done(err);
                 }
                 expect(report.passed).to.be.false;
-                console.log(report);
+                // console.log(report);
                 expect(report.failures.length).to.equal(1);
                 done();
             });
@@ -358,7 +353,7 @@ describe('Java runner', function() {
                 if (err) {
                     return done(err);
                 }
-                console.log(report);
+                // console.log(report);
                 expect(report.passed).to.be.true;
                 expect(report.passes.length).to.equal(5);
                 expect(report.score).to.equal(10);
@@ -423,10 +418,10 @@ describe('Java runner', function() {
                 timeLimit: 800
             }, function(err, stout, sterr) {
                 if (err) {
-                    console.error(err + '\n==========================\n');
+                    // console.error(err + '\n==========================\n');
                     return done(err);
                 }
-                stout && console.log(stout);
+                // stout && console.log(stout);
                 expect(sterr).to.equal("TimeoutException: Your program ran for more than 800ms");
                 done();
             });

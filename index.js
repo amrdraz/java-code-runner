@@ -343,7 +343,6 @@ var test = exports.test = function(code, test, options, cb) {
         var reg = new RegExp("<\\[" + hash + "\\]>((?!<\\["+hash+"\\]>)[\\s\\S])+<\\[" + hash + "\\]>", "g");
         var tests = stout.match(reg) || [];
         if (!_.isEmpty(tests)) {
-            console.log(stout);
             tests = ('[' + tests.join(',') + ']');
             tests = tests.replace(new RegExp("<\\[" + hash + "\\]>", 'g'), '');
             tests = report.tests = JSON.parse(tests);
