@@ -147,8 +147,8 @@ function runCMD(options, cb) {
     var args = ["-cp", ".", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "TerminalRunner"];
     args.push(options.name);
     args.push(options.program);
-    args.push(options.input);
-    args.push(options.runTimeout);
+    args.push(options.timeLimit||5000);
+    args.push(options.input||'');
 
     // delaying request if more then one hit so that the event loop has time to compute
     if (running < 1) {
@@ -293,11 +293,13 @@ var test = exports.test = function(code, test, options, cb) {
     // make sure to acomidate for both threaded and none
     if(options.runInCMD) {
          pre = pre +
-            'PrintStream _out = System.out'+
+            'PrintStream _out = System.out;\n'+
             'System.setOut(new PrintStream($userOut));\n' +
             'Test $test = new Test("' + hash + '", ' + JSON.stringify(code) + ');\n';
         post = '\n' +
-            'System.setOut(_out);' + '\n';
+            'System.setOut(_out);' + '\n' +
+            'System.out.print($test.getTestOut().toString());\n';
+
     } else {
         pre = pre +
             'PrintStream _out = ((ThreadPrintStream)System.out).getThreadOut();'+
@@ -371,6 +373,8 @@ var runClass = exports.runClass = function(code, options, cb) {
     if (servletReady && !options.runInCMD) {
         runInServlet(options, cb);
     } else {
+        !options.runInCMD && checkIfServletIsAlreadyRunning();
+        !options.runInCMD && console.log("warning ran from bash");
         runCMD(options, cb);
     }
 };

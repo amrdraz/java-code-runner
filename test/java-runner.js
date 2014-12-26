@@ -25,6 +25,7 @@ describe('Java runner', function() {
                 .expect(200)
                 .end(done);
         });
+
         it('should run simple java HelloWorld program', function(done) {
             request(url)
                 .post("/")
@@ -166,6 +167,16 @@ describe('Java runner', function() {
             });
         });
 
+        it('should run java in bash', function(done) {
+            runner.run('System.out.print("Hello");', {runInCMD:true},function(err, stout, sterr) {
+                // stout && console.log(stout);
+                // sterr && console.error(sterr);
+                if (err) return done(err);
+                expect(stout).to.equal('Hello');
+                done();
+            });
+        });
+
         it('should output sterr for compile errors', function(done) {
             runner.run('System.out.print("Hello")', function(err, stout, sterr) {
                 // sterr && console.error(sterr);
@@ -283,6 +294,21 @@ describe('Java runner', function() {
                 if (err) {
                     return done(err);
                 }
+                expect(report.passed).to.be.true;
+                done();
+            });
+        });
+
+         it('should run code against test in bash', function(done) {
+            runner.test(code, test, {
+                name: 'TestMain',
+                exp: 1,
+                runInCMD:true
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                // console.log(report, stout, sterr);
                 expect(report.passed).to.be.true;
                 done();
             });

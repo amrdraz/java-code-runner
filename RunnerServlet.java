@@ -21,15 +21,6 @@ import java.util.logging.Logger;
 import java.util.ArrayList;
 import java.util.List;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.ExecutionException;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -134,8 +125,6 @@ class ServletRoute extends HttpServlet
         // response map
         Map<String,String> res = new HashMap<String,String>();
 
-        // start executor in order to timeout
-        ExecutorService executor = Executors.newSingleThreadExecutor();
         Thread thread = new Thread(new Runnable() {
          public void run() {
             ByteArrayInputStream runnerIn =  new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));;
