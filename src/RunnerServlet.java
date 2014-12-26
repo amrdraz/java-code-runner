@@ -45,6 +45,8 @@ public class RunnerServlet
       context.setContextPath("/");
       context.addServlet(new ServletHolder(new ServletRoute()),"/*");
 
+      server.setHandler(context);
+
       server.start();
   }
 }
