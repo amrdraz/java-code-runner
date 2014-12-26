@@ -11,11 +11,14 @@ describe('Java runner', function() {
     var url;
     var port;
     before(function(done) {
-        runner.runServer(function(p) {
-            port = p;
-            url = 'http://localhost:' + p;
-            console.log('sending request to ' + url);
-            done();
+        runner.recompile(function (err, stout, sterr) {
+            // console.log(err, stout, sterr);
+            runner.runServer(function(p) {
+                port = p;
+                url = 'http://localhost:' + p;
+                console.log('sending request to ' + url);
+                done();
+            });
         });
     });
     describe('Java Server', function() {

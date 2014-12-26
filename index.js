@@ -13,7 +13,7 @@ var startingServer = false; // flag if server is ready to reseave post requests
 var defaultPort = 3678; // default port picked it at random
 
 var servletPort;
-var servlet;
+var servlet = null;
 
 // get an empty port for the java server
 function getPort(cb) {
@@ -33,14 +33,38 @@ function getPort(cb) {
 }
 
 /**
+ * Exposed method that builds project with ant
+ * @param  {Function} cb callback after cmd execution
+ * @return {[type]}      [description]
+ */
+var recompile = exports.recompile = function recompile(cb) {
+    cp.exec('ant', {
+        cwd: __dirname
+    }, function (err, stout, sterr) {
+        cb(err, stout, sterr);
+    });
+};
+
+/**
+ * Exposed method for stoping server
+ * @param {Boolean} kill flag to kill even if other flags are on
+ * @return {[type]} [description]
+ */
+var stopServer = exports.stopServer = function (kill) {
+    if (startingServer || servletReady || kill) {
+        servlet.kill();
+        servlet = null;
+    }
+};
+/**
  * Starts the servlet on an empty port default is 3678
  */
 function startServlet(cb) {
     getPort(function(port) {
         servletPort = global._servletPort = '' + port;
 
-        servlet = global._servlet = cp.spawn('java', ['-cp', '.:servlet-api-2.5.jar:jetty-all-7.0.2.v20100331.jar', 'RunnerServlet', servletPort], {
-            cwd: __dirname
+        servlet = global._servlet = cp.spawn('java', ['-cp', '.:../lib/servlet-api-2.5.jar:../lib/jetty-all-7.0.2.v20100331.jar', 'RunnerServlet', servletPort], {
+            cwd: __dirname + '/bin'
         });
 
         servlet.stdout.on('data', function(data) {
@@ -61,7 +85,7 @@ function startServlet(cb) {
 
         // make sure to close server after node process ends
         process.on('exit', function() {
-            servlet.kill();
+            stopServer(true);
         });
     });
 }
@@ -105,9 +129,6 @@ var checkIfServletIsAlreadyRunning = exports.runServer = function(port, cb) {
     });
 };
 
-// start server
-checkIfServletIsAlreadyRunning(global._servletPort || defaultPort);
-
 /**
  * Spawn a java process and return callback
  * @param  {Array}   args  arguments to pass to java proc
@@ -117,7 +138,7 @@ function runProc(args, cb) {
     var stoutBuffer = '',
         sterrBuffer = '';
     var proc = cp.spawn('java', args, {
-        cwd: __dirname
+        cwd: __dirname + '/bin'
     });
     proc.stdout.on('data', function(data) {
         stoutBuffer += data;
