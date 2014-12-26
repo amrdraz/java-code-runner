@@ -35,28 +35,17 @@ public class RunnerServlet
 {
   public static void main(String[] args) throws Exception
   {
-
-
-      int port = 8080;
+      int port = 3678;
       if (args.length>0) {
         port = Integer.parseInt(args[0]);
       }
       Server server = new Server(port);
 
-      ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+      ServletContextHandler context = new ServletContextHandler();
       context.setContextPath("/");
-      server.setHandler(context);
-
-      // Server content from tmp
-      // ServletHolder holder = context.addServlet(org.eclipse.jetty.servlet.DefaultServlet.class,"/tmp/*");
-      // holder.setInitParameter("resourceBase","/tmp");
-      // holder.setInitParameter("pathInfoOnly","true");
-      
-      // Serve some hello world servlets
       context.addServlet(new ServletHolder(new ServletRoute()),"/*");
 
       server.start();
-      server.join();
   }
 }
 

@@ -64,7 +64,8 @@ function startServlet(cb) {
         servletPort = global._servletPort = '' + port;
 
         servlet = global._servlet = cp.spawn('java', ['-cp', '.:../lib/servlet-api-2.5.jar:../lib/jetty-all-7.0.2.v20100331.jar', 'RunnerServlet', servletPort], {
-            cwd: __dirname + '/bin'
+            cwd: __dirname + '/bin',
+            env:process.env
         });
 
         servlet.stdout.on('data', function(data) {

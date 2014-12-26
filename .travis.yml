@@ -3,6 +3,6 @@ jdk:
     - oraclejdk8
 node_js: "0.10"
 install:
-    - apt-get install ant
+    - sudo apt-get install ant
     - npm install
 script: "npm test"
