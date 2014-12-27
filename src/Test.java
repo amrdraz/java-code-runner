@@ -65,59 +65,61 @@ public class Test {
     private void out(boolean pass,String msg, int point) {
         out( pass, msg,  point, null);
     }
-    public void pass(String msg, int point, String tag) {
+    public boolean pass(String msg, int point, String tag) {
         if(point<0) { // you can not award negative points for pass
             point=0;
         }
         out(true,msg,point, tag);
+        return true;
     }
-    public void pass(String msg, int point) {
-        pass(msg,point, null);
-    }
-
-    public void pass(String msg) {
-        pass(msg,0);
-    }
-    public void pass(String msg, String tag) {
-        pass(msg,0, tag);
+    public boolean pass(String msg, int point) {
+        return pass(msg,point, null);
     }
 
-    public void pass(int score, String tag) {
-        pass(DEFAULT_PASS,score, tag);
+    public boolean pass(String msg) {
+        return pass(msg,0);
+    }
+    public boolean pass(String msg, String tag) {
+        return pass(msg,0, tag);
     }
 
-    public void pass(int score) {
-        pass(DEFAULT_PASS,score, null);
+    public boolean pass(int score, String tag) {
+        return pass(DEFAULT_PASS,score, tag);
     }
 
-    public void pass() {
-        pass(DEFAULT_PASS);
+    public boolean pass(int score) {
+        return pass(DEFAULT_PASS,score, null);
     }
 
-    public void fail(String msg, int point, String tag) {
+    public boolean pass() {
+        return pass(DEFAULT_PASS);
+    }
+
+    public boolean fail(String msg, int point, String tag) {
         if(point>0) { // you can not award positive points for failure
             point=0;
         }
         out(false,msg,0, tag);
+        return false;
     }
-    public void fail(String msg, int point) {
-        fail(msg,0,null);
+    public boolean fail(String msg, int point) {
+        return fail(msg,0,null);
     }
-    public void fail(String msg) {
-        fail(msg,0);
+    public boolean fail(String msg) {
+        return fail(msg,0);
     }
-    public void fail(String msg,String tag) {
-        fail(msg,0,tag);
+    public boolean fail(String msg,String tag) {
+        return fail(msg,0,tag);
     }
-    public void fail(int score) {
-        fail(DEFAULT_FAIL,score);
+    public boolean fail(int score) {
+        return fail(DEFAULT_FAIL,score);
     }
 
-    public void fail(int score, String tag) {
-        fail(DEFAULT_FAIL,score,tag);
+    public boolean fail(int score, String tag) {
+        return fail(DEFAULT_FAIL,score,tag);
     }
-    public void fail() {
-        fail(DEFAULT_FAIL);
+    public boolean fail() {
+        return fail(DEFAULT_FAIL);
     }
 
     /**
@@ -129,43 +131,43 @@ public class Test {
      * @param s        int    score awarded for test
      * @param tag      String tag assissiated with test
      */
-    public void matches(String user, String expected, String msg, String failmsg, int score, String tag) {
+    public boolean matches(String user, String expected, String msg, String failmsg, int score, String tag) {
         if(user.matches("[\\s\\S]*"+expected+"[\\s\\S]*")){
-            pass(msg,score,tag);
+            return pass(msg,score,tag);
         } else {
-            fail(failmsg,score,tag);
+            return fail(failmsg,score,tag);
         }
     }
-    public void matches(String user, String expected, String msg, int score, String tag) {
+    public boolean matches(String user, String expected, String msg, int score, String tag) {
         if(user.matches(expected)){
-            pass(msg, score,tag);
+            return pass(msg, score,tag);
         } else {
-            fail("Expected "+user+" to match "+expected+"",score,tag);
+            return fail("Expected "+user+" to match "+expected+"",score,tag);
         }
     }
-    public void matches(String user, String expected, String msg, String failmsg, String tag) {
-        matches(user,expected,msg,failmsg,0,tag);
+    public boolean matches(String user, String expected, String msg, String failmsg, String tag) {
+        return matches(user,expected,msg,failmsg,0,tag);
     }
-    public void matches(String user, String expected, String msg, String failmsg, int score) {
-        matches(user,expected,msg,failmsg,score,null);
+    public boolean matches(String user, String expected, String msg, String failmsg, int score) {
+        return matches(user,expected,msg,failmsg,score,null);
     }
-    public void matches(String user, String expected, String msg, String tag) {
-        matches(user,expected,msg,0,tag);
+    public boolean matches(String user, String expected, String msg, String tag) {
+        return matches(user,expected,msg,0,tag);
     }
-    public void matches(String user, String expected, String msg, int score) {
-        matches(user,expected,msg,score,null);
+    public boolean matches(String user, String expected, String msg, int score) {
+        return matches(user,expected,msg,score,null);
     }
-    public void matches(String user, String expected, String msg) {
-        matches(user,expected,msg,0,null);
+    public boolean matches(String user, String expected, String msg) {
+        return matches(user,expected,msg,0,null);
     }
-    public void matches(String user, String expected, int score, String tag) {
-        matches(user,expected,DEFAULT_PASS,score,tag);
+    public boolean matches(String user, String expected, int score, String tag) {
+        return matches(user,expected,DEFAULT_PASS,score,tag);
     }
-    public void matches(String user, String expected, int score) {
-        matches(user,expected,DEFAULT_PASS,score);
+    public boolean matches(String user, String expected, int score) {
+        return matches(user,expected,DEFAULT_PASS,score);
     }
-    public void matches(String user, String expected) {
-        matches(user,expected,DEFAULT_PASS);
+    public boolean matches(String user, String expected) {
+        return matches(user,expected,DEFAULT_PASS);
     }
 
     /**
@@ -177,35 +179,35 @@ public class Test {
      * @param s        int    score awarded for test
      * @param tag      String tag assissiated with test
      */
-    public void contains(String user, Object expected, String msg, String failmsg, int score, String tag) {
-        matches(user, "[\\s\\S]*"+expected+"[\\s\\S]*", msg, failmsg, score, tag);
+    public boolean contains(String user, Object expected, String msg, String failmsg, int score, String tag) {
+        return matches(user, "[\\s\\S]*"+expected+"[\\s\\S]*", msg, failmsg, score, tag);
     }
-    public void contains(String user, Object expected, String msg, int score, String tag) {
-        matches(user, "[\\s\\S]*"+expected+"[\\s\\S]*", msg, "Expected "+user+" to contain "+expected+"",score,tag);
+    public boolean contains(String user, Object expected, String msg, int score, String tag) {
+        return matches(user, "[\\s\\S]*"+expected+"[\\s\\S]*", msg, "Expected "+user+" to contain "+expected+"",score,tag);
     }
-    public void contains(String user, Object expected, String msg, String failmsg, String tag) {
-        contains(user,expected,msg,failmsg,0,tag);
+    public boolean contains(String user, Object expected, String msg, String failmsg, String tag) {
+        return contains(user,expected,msg,failmsg,0,tag);
     }
-    public void contains(String user, Object expected, String msg, String failmsg, int score) {
-        contains(user,expected,msg,failmsg,score,null);
+    public boolean contains(String user, Object expected, String msg, String failmsg, int score) {
+        return contains(user,expected,msg,failmsg,score,null);
     }
-    public void contains(String user, Object expected, String msg, String tag) {
-        contains(user,expected,msg,0,tag);
+    public boolean contains(String user, Object expected, String msg, String tag) {
+        return contains(user,expected,msg,0,tag);
     }
-    public void contains(String user, Object expected, String msg, int score) {
-        contains(user,expected,msg,score,null);
+    public boolean contains(String user, Object expected, String msg, int score) {
+        return contains(user,expected,msg,score,null);
     }
-    public void contains(String user, Object expected, String msg) {
-        contains(user,expected,msg,0,null);
+    public boolean contains(String user, Object expected, String msg) {
+        return contains(user,expected,msg,0,null);
     }
-    public void contains(String user, Object expected, int score, String tag) {
-        contains(user,expected,DEFAULT_PASS,score,tag);
+    public boolean contains(String user, Object expected, int score, String tag) {
+        return contains(user,expected,DEFAULT_PASS,score,tag);
     }
-    public void contains(String user, Object expected, int score) {
-        contains(user,expected,DEFAULT_PASS,score);
+    public boolean contains(String user, Object expected, int score) {
+        return contains(user,expected,DEFAULT_PASS,score);
     }
-    public void contains(String user, Object expected) {
-        contains(user,expected,DEFAULT_PASS);
+    public boolean contains(String user, Object expected) {
+        return contains(user,expected,DEFAULT_PASS);
     }
 
     /**
@@ -217,42 +219,42 @@ public class Test {
      * @param s        score awarded for test
      * @param tag      tag assissiated with test
      */
-    public void expect(Object user, Object expected, String msg, String failmsg, int score, String tag) {
+    public boolean expect(Object user, Object expected, String msg, String failmsg, int score, String tag) {
         if(user.equals(expected)){
-            pass(msg,score,tag);
+            return pass(msg,score,tag);
         } else {
-            fail(failmsg,score,tag);
+            return fail(failmsg,score,tag);
         }
     }
-    public void expect(Object user, Object expected, String msg, int score, String tag) {
+    public boolean expect(Object user, Object expected, String msg, int score, String tag) {
         if(user.equals(expected)){
-            pass(msg, score,tag);
+            return pass(msg, score,tag);
         } else {
-            fail("Expected "+user+" to equal "+expected+"",score,tag);
+            return fail("Expected "+user+" to equal "+expected+"",score,tag);
         }
     }
-    public void expect(Object user, Object expected, String msg, String failmsg, String tag) {
-        expect(user,expected,msg,failmsg,0,tag);
+    public boolean expect(Object user, Object expected, String msg, String failmsg, String tag) {
+        return expect(user,expected,msg,failmsg,0,tag);
     }
-    public void expect(Object user, Object expected, String msg, String tag) {
-        expect(user,expected,msg,0,tag);
+    public boolean expect(Object user, Object expected, String msg, String tag) {
+        return expect(user,expected,msg,0,tag);
     }
-     public void expect(Object user, Object expected, String msg, String failmsg, int score) {
-        expect(user,expected,msg,failmsg,0,null);
+     public boolean expect(Object user, Object expected, String msg, String failmsg, int score) {
+        return expect(user,expected,msg,failmsg,0,null);
     }
-    public void expect(Object user, Object expected, String msg, int score) {
-        expect(user,expected,msg,score,null);
+    public boolean expect(Object user, Object expected, String msg, int score) {
+        return expect(user,expected,msg,score,null);
     }
-    public void expect(Object user, Object expected, String msg) {
-        expect(user,expected,msg,0,null);
+    public boolean expect(Object user, Object expected, String msg) {
+        return expect(user,expected,msg,0,null);
     }
-    public void expect(Object user, Object expected, int score, String tag) {
-        expect(user,expected,DEFAULT_PASS,score,tag);
+    public boolean expect(Object user, Object expected, int score, String tag) {
+        return expect(user,expected,DEFAULT_PASS,score,tag);
     }
-    public void expect(Object user, Object expected, int score) {
-        expect(user,expected,DEFAULT_PASS,score);
+    public boolean expect(Object user, Object expected, int score) {
+        return expect(user,expected,DEFAULT_PASS,score);
     }
-    public void expect(Object user, Object expected) {
-        expect(user,expected,DEFAULT_PASS);
+    public boolean expect(Object user, Object expected) {
+        return expect(user,expected,DEFAULT_PASS);
     }
 }
