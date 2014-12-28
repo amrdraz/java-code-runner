@@ -2,6 +2,7 @@
 var runner = require('../index.js');
 var expect = require('chai').expect;
 var Promise = require('bluebird');
+var _ = require('lodash');
 var request = require('supertest');
 var http = require('http');
 
@@ -11,8 +12,8 @@ describe('Java runner', function() {
     var url;
     var port;
     before(function(done) {
-        runner.recompile(function (err, stout, sterr) {
-            // console.log(err, stout, sterr);
+        runner.recompile(function (compiled) {
+            expect(compiled).to.be.true;
             runner.runServer(function(p) {
                 port = p;
                 url = 'http://localhost:' + p;
@@ -21,6 +22,7 @@ describe('Java runner', function() {
             });
         });
     });
+
     describe('Java Server', function() {
         it('should respond to GET request with 200', function(done) {
             request(url)
@@ -158,6 +160,21 @@ describe('Java runner', function() {
                 });
         });
     });
+
+    
+    describe('index#runInClass', function () {
+        it('should run a java class', function (done) {
+            runner.runClass('public class MainClass { public static void print() {System.out.println("Test");} public static void main(String[] args) {print();}}', {
+            }, function(err, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                expect(stout).to.equal("Test\n");
+                done();
+            });
+        });
+    });
+
 
     describe('index#run', function() {
         it('should run java', function(done) {
@@ -429,7 +446,7 @@ describe('Java runner', function() {
             });
         });
 
-        it('should return escaped regex when $test.match fail', function(done) {
+        it('should output escaped regex in message when $test.match fail', function(done) {
             runner.test(code, '$test.matches($test.getCode(), "char \\\\sc =");', {
                 name: 'TestMain',
                 exp: 1
@@ -438,6 +455,44 @@ describe('Java runner', function() {
                     return done(err);
                 }
                 expect(report.passed).to.be.false;
+                done();
+            });
+        });
+
+        it('$test.pass should retrn true', function(done) {
+            runner.test(code, 'System.err.print(""+$test.pass());', {
+                name: 'TestMain',
+                exp: 1
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                expect(sterr).to.equal('true');
+                done();
+            });
+        });
+        it('$test.fail should retrn false', function(done) {
+            runner.test(code, 'System.err.print(""+$test.fail());', {
+                name: 'TestMain',
+                exp: 1
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                expect(sterr).to.equal('false');
+                done();
+            });
+        });
+
+        it('should return true if $test.contains passes', function(done) {
+            runner.test(code, 'if($test.contains($test.getCode(), "char c =")) { System.err.print(""+true);} else { System.err.print(""+false); }', {
+                name: 'TestMain',
+                exp: 1
+            }, function(err, report, stout, sterr) {
+                if (err) {
+                    return done(err);
+                }
+                expect(sterr).to.equal('true');
                 done();
             });
         });
@@ -457,17 +512,64 @@ describe('Java runner', function() {
         });
     });
 
-    describe('index#runInClass', function () {
-        it('should run a java class', function (done) {
-            runner.runClass('public class MainClass { public static void print() {System.out.println("Test");} public static void main(String[] args) {print();}}', {
-            }, function(err, stout, sterr) {
-                if (err) {
-                    return done(err);
-                }
-                expect(stout).to.equal("Test\n");
+
+    describe('Server Restart', function () {
+        var code = 'char c =\'a\'; \n int a = 40, b = 20; System.out.print("a - b = " + (a - b));';
+        var test = '$main();\n$test.expect($userOut.toString(),"a - b = 20");';
+        it('should stop', function (done) {
+            runner.stopServer(function (stop) {
+                expect(stop).to.be.true;
                 done();
             });
         });
-    });
+        it('should start again', function (done) {
+            this.timeout(5000);
+            runner.runServer(function(p) {
+                expect(p).to.equal(3678);
+                done();
+            });
+        });
 
+        it('should not compile again in the same process', function (done) {
+            runner.recompile(function(compiled) {
+                expect(compiled).to.be.false;
+                done();
+            });
+        });
+
+        it('server should be running now', function (done) {
+            runner.run(code, function(err, stout, sterr) {
+                done();
+            });
+        });
+
+        it('should be able to handle runinng code while resarting server', function (done) {
+            this.timeout(20000);
+            var timer, i = 0;
+            timer = setInterval(function() {
+                i++;
+                runner.run(code, function(err, stout, sterr) {
+                    i--;
+                    expect(stout).to.equal('a - b = 20');
+                });
+            }, 100); //simulate trafic
+            runner.test(code, test, {
+                name: 'TestMain',
+                exp: 1,
+                debug_number: i++
+            }, function(err, report, stout, sterr) {
+                expect(report.passed).to.be.true;
+                runner.stopServer(function (stoped) {
+                    runner.run(code, function(err, stout, sterr) {
+                        expect(stout).to.equal('a - b = 20');
+                        clearInterval(timer);
+                        _.delay(function () {
+                            done();
+                        }, i* 100);
+                    });
+                });
+            });
+
+        });
+    });
 });
