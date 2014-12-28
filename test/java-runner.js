@@ -11,19 +11,26 @@ describe('Java runner', function() {
 
     var url;
     var port;
-    before(function(done) {
-        runner.recompile(function (compiled) {
-            expect(compiled).to.be.true;
-            runner.runServer(function(p) {
-                port = p;
-                url = 'http://localhost:' + p;
-                console.log('sending request to ' + url);
+
+    describe('Java Server', function() {
+
+        it('shoudl compile', function (done) {
+            runner.recompile(function (compiled) {
+                expect(compiled).to.be.true;
                 done();
             });
         });
-    });
 
-    describe('Java Server', function() {
+        it('should start server', function (done) {
+            runner.runServer(3678, function(p) {
+                port = p;
+                url = 'http://localhost:' + p;
+                console.log('sending request to ' + url);
+                expect(p).to.equal(3678);
+                done();
+            });
+        });
+
         it('should respond to GET request with 200', function(done) {
             request(url)
                 .get("/")
@@ -549,7 +556,6 @@ describe('Java runner', function() {
             timer = setInterval(function() {
                 i++;
                 runner.run(code, function(err, stout, sterr) {
-                    i--;
                     expect(stout).to.equal('a - b = 20');
                 });
             }, 100); //simulate trafic
@@ -565,7 +571,7 @@ describe('Java runner', function() {
                         clearInterval(timer);
                         _.delay(function () {
                             done();
-                        }, i* 100);
+                        }, i * 100);
                     });
                 });
             });
