@@ -1,4 +1,4 @@
-This is a module for runinng Java from String inside a node server
+This is a module for runinng Java from String inside a node server built for another project called kodr
 
 to run tests
 
@@ -11,17 +11,11 @@ I use Java 1.8
 
 to run the server
 
-Compile JavaRunner
+Compile using 'ant'
 
-    javac JavaRunner.java
+Run server in bin
 
-Compile Server
-
-    javac -cp .:servlet-api-2.5.jar:jetty-all-7.0.2.v20100331.jar RunnerServlet.java
-
-Run server
-
-    java -cp .:servlet-api-2.5.jar:jetty-all-7.0.2.v20100331.jar RunnerServlet
+    java -cp .:../lib/servlet-api-2.5.jar:../lib/jetty-all-7.0.2.v20100331.jar RunnerServlet
 
 The default port is `3678`
 
@@ -60,13 +54,16 @@ This code is designed for UNIX system it may be incompatible with Windows, eg. I
 
 
 ###node wraper
-The module's index.js file exposes 3 methods
+The module's index.js file exposes 6 methods
 - `run`
 - `test`
 - `runClass`
+- `stopServer`
+- `runServer`
+- `recompile` which prgramatically compiles only once per process
 
 see tests for how they work.
 
 ###Things left to do
 
-Look inot runing the java server as a docker container for security
+Look into runing the java server as a docker container for security
