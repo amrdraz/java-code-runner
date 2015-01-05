@@ -1,6 +1,5 @@
 /*globals before,after,beforeEach,afterEach,describe,it */
 var runner = require('../index.js');
-var server = require('../node/server.js');
 var expect = require('chai').expect;
 var Promise = require('bluebird');
 var _ = require('lodash');
@@ -9,13 +8,13 @@ require('./compile');
 
 describe('Server Stressing', function() {
     before(function (done) {
-        server.startServer(function () {
+        runner.server.startServer(function () {
             done();
         });
     });
 
     after(function (done) {
-        server.stopServer(function () {
+        runner.server.stopServer(function () {
             done();
         });
     });
@@ -57,7 +56,7 @@ describe('Server Stressing', function() {
         }).catch(done);
     });
 
-    it('should be able to handle runinng code while resarting server', function(done) {
+    it('should be able to handle runinng code while resarting runner.server', function(done) {
         this.timeout(20000);
         var timer, i = 0;
         timer = setInterval(function() {
@@ -76,8 +75,8 @@ describe('Server Stressing', function() {
             debug_number: i++
         }, function(err, report, stout, sterr) {
             expect(report.passed).to.be.true;
-            // console.log("server ran one test case in stress.js test");
-            server.stopServer(function(stoped) {
+            // console.log("runner.server ran one test case in stress.js test");
+            runner.server.stopServer(function(stoped) {
                 runner.run(code, function(err, stout, sterr) {
                     expect(stout).to.equal('a - b = 20');
                     clearInterval(timer);
@@ -98,7 +97,7 @@ describe('Server Stressing', function() {
         this.timeout(30000);
         var timer = setTimeout(function() {
             console.log("===================stop");
-            server.stopServer();
+            runner.server.stopServer();
         }, 5000);
         // finished = 0;
         Promise.map(new Array(900), function(x, i) {

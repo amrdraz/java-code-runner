@@ -1,6 +1,5 @@
 /*globals before,after,beforeEach,afterEach,describe,it */
 var runner = require('../index.js');
-var server = require('../node/server.js');
 var expect = require('chai').expect;
 var Promise = require('bluebird');
 var _ = require('lodash');
@@ -11,13 +10,13 @@ require('./compile');
 describe('Java runner', function() {
 
     before(function (done) {
-        server.startServer(function () {
+        runner.server.startServer(function () {
             done();
         });
     });
 
     after(function (done) {
-        server.stopServer(function () {
+        runner.server.stopServer(function () {
             done();
         });
     });

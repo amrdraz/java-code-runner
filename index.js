@@ -7,7 +7,7 @@ var fs = require('fs');
 var _ = require('lodash');
 var observer = require('./node/observer');
 var config = require('./node/config');
-var server = require('./node/server');
+var server = exports.server = require('./node/server');
 var queue = require('./node/queue');
 
 
