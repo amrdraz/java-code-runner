@@ -1,157 +1,19 @@
 var cp = require('child_process');
 var log = require('util').log;
-var net = require('net');
 var path = require('path');
 var querystring = require('querystring');
 var http = require('http');
 var fs = require('fs');
 var _ = require('lodash');
+var observer = require('./node/observer');
+var config = require('./node/config');
+var server = require('./node/server');
+var queue = require('./node/queue');
 
+
+var timeLimit = config.timeLimit;
+var runningLimit = runningLimit;
 var running = 0; // workaround to reduce event loop blocking when running in terminal
-var timeLimit = 5000;
-var compiled = false;
-var compiling = false;
-var servletReady = false; // flag if server is ready to reseave post requests
-var startingServer = false; // flag if server is ready to reseave post requests
-var defaultPort = 3678; // default port picked it at random
-var tryPort = 3678; // default port picked it at random
-
-var servletPort;
-var servlet = null;
-
-// get an empty port for the java server
-function getPort(cb) {
-    var port = tryPort;
-    tryPort += 1;
-
-    var server = net.createServer();
-    server.listen(port, function(err) {
-        server.once('close', function() {
-            cb(port);
-        });
-        server.close();
-    });
-    server.on('error', function(err) {
-        log("port "+tryPort+" is occupied");
-        getPort(cb);
-    });
-}
-
-/**
- * Exposed method that builds project with ant
- * @param  {Function} cb callback after cmd execution
- * @return {[type]}      [description]
- */
-var recompile = exports.recompile = function recompile(cb) {
-    if(!compiled) {
-        compiling = true;
-        cp.exec('ant', {
-            cwd: __dirname
-        }, function (err, stout, sterr) {
-            compiled = true;
-            compiling = false;
-            cb(compiled);
-        });
-    } else {
-        log("already compiled project in this process");
-        cb(false);
-    }
-};
-
-/**
- * Exposed method for stoping server
- * @param {Function} callback fwith parameter indicating success to stop
- * @return {[type]} [description]
- */
-var stopServer = exports.stopServer = function (kill) {
-    var cb = _.isFunction(kill)?kill:_.noop;
-    if ((startingServer || servletReady || kill) && servlet) {
-        servlet.kill();
-        servlet = global._servlet = servletPort = global._servletPort = null;
-        servletReady = startingServer = false;
-        tryPort = defaultPort;
-        log("Stoped Server");
-        return cb(true);
-    }
-    log("No Process to stop");
-    cb(false);
-};
-/**
- * Starts the servlet on an empty port default is 3678
- */
-function startServlet(cb) {
-    getPort(function(port) {
-        servletPort = global._servletPort = '' + port;
-
-        servlet = global._servlet = cp.spawn('java', ['-cp', '.:../lib/servlet-api-2.5.jar:../lib/jetty-all-7.0.2.v20100331.jar', 'RunnerServlet', servletPort], {
-            cwd: __dirname + '/bin',
-            env:process.env
-        });
-
-        servlet.stdout.on('data', function(data) {
-            log('OUT:' + data);
-        });
-        servlet.stderr.on('data', function(data) {
-            console.log("" + data);
-            if (~data.toString().indexOf(servletPort)) {
-                log('calling cb with data '+ data)
-                servletReady = true;
-                startingServer = false;
-                cb && cb(port);
-            }
-        });
-        servlet.on('exit', function(code) {
-            log('servlet exist with code ' + code);
-        });
-
-        // make sure to close server after node process ends
-        process.on('exit', function() {
-            stopServer(true);
-        });
-    });
-}
-
-/**
- * Check if a server server is runing on port 3678 if so no need to start a new server
- * @param  {number} port port to check against default to defaultPort
- */
-var checkIfServletIsAlreadyRunning = exports.runServer = function(port, cb) {
-    if (!port) {
-        port = defaultPort;
-        cb = _.noop;
-    } else if (_.isFunction(port)) {
-        cb = port;
-        port = defaultPort;
-    }
-    log("checking if server is running");
-    http.get("http://localhost:" + port + "/", function(res) {
-        if (res.statusCode === 200) {
-            servletPort = global._servletPort = port;
-            servletReady = true;
-            if (cb) {
-                cb(port);
-            }
-            startingServer = false;
-        } else {
-            log(res);
-        }
-    }).on('error', function(e) {
-        if (!startingServer) {
-            if(servletPort) {
-                log("it is not but port is defined");
-                return cb(+servletPort);
-            }
-            startingServer = true;
-            log('No server running starting our own');
-            startServlet(cb);
-        } else {
-            log('a server is starting waiting till it does');
-            _.delay(function() {
-                checkIfServletIsAlreadyRunning(cb);
-            }, 1000);
-        }
-    });
-};
 
 /**
  * Spawn a java process and return callback
@@ -162,7 +24,7 @@ function runProc(args, cb) {
     var stoutBuffer = '',
         sterrBuffer = '';
     var proc = cp.spawn('java', args, {
-        cwd: __dirname + '/bin'
+        cwd: config.rootDir + '/bin'
     });
     proc.stdout.on('data', function(data) {
         stoutBuffer += data;
@@ -189,25 +51,21 @@ function runProc(args, cb) {
  * @param  {Function} cb      callback when complete
  */
 function runCMD(options, cb) {
+    if (options.cb) {
+        cb = options.cb;
+    }
     var args = ["-cp", ".", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "TerminalRunner"];
     args.push(options.name);
     args.push(options.program);
-    args.push(options.timeLimit||5000);
-    args.push(options.input||'');
+    args.push(options.timeLimit || config.timeLimit);
+    args.push(options.input || '');
 
-    // delaying request if more then one hit so that the event loop has time to compute
-    if (running < 1) {
-        running++;
-        runProc(args, cb);
-    } else {
-        running++;
-        // log(running);
-        _.delay(function() {
-            runClass(options.program, options, cb);
-        }, running * 1000);
-    }
+
+    runProc(args, function () {
+        observer.emit("runner.finished", options);
+        cb.apply(this, arguments);
+    });
 }
-
 
 /**
  * Run java program in server, which is singnificantly faster then CMD
@@ -217,19 +75,24 @@ function runCMD(options, cb) {
  *                    - {String}   input   The program's input stream if needed
  * @param  {Function} cb      callback when complete
  */
-function runInServlet(options, cb) {
+function runInServlet(request, cb) {
+    // log("waitingQueue:"+waitingQueue.length+", runningQueue:"+runningQueue.length);
+    // log("pushed into running");
+    if (request.cb) {
+        cb = request.cb;
+    }
     var timer;
     // program to run
     var post_data = querystring.stringify({
-        'name': options.name,
-        'code': options.program,
-        'input': options.input||'',
-        'timeLimit':options.timeLimit||5000
+        'name': request.name,
+        'code': request.program,
+        'input': request.input || '',
+        'timeLimit': request.timeLimit || config.timeLimit
     });
-    // An object of options to indicate where to post to
+    // An object of request to indicate where to post to
     var post_options = {
         host: '127.0.0.1',
-        port: servletPort,
+        port: server.getPort(),
         path: '',
         method: 'POST',
         headers: {
@@ -246,6 +109,11 @@ function runInServlet(options, cb) {
         res.on('data', function(data) {
             // clearTimeout(timer);
             data = JSON.parse(data);
+            // log("finished with one");
+            request.setToDone();
+            observer.emit("runner.finished", request);
+            // queue.clearRunning();
+            // queue.checkQueues();
             cb(null, data.stout, data.sterr);
         });
 
@@ -259,7 +127,9 @@ function runInServlet(options, cb) {
     });
 
     post_req.on('error', function(e) {
-        cb(e);
+        log("Error while waiting for server response ", e);
+        observer.emit("runner.post_error", request);
+        // cb(e);
     });
     // timer = setTimeout(function () {
     //     cb(new Error("TimeoutException: Your program ran for more than "+timeLimit));
@@ -268,6 +138,13 @@ function runInServlet(options, cb) {
     post_req.end();
 }
 
+observer.on("runner.run", function(req) {
+    if (req.runInCMD) {
+        runCMD(req);
+    } else {
+        runInServlet(req);
+    }
+});
 
 /**
  * run java inside main method using the java built in dynamic compiler
@@ -279,7 +156,12 @@ function runInServlet(options, cb) {
  * @param  {Function} cb      return callback
  */
 var runClass = exports.runClass = function(code, options, cb) {
-     if (_.isFunction(options)) {
+    // === format request
+    if (_.isObject(code)) {
+        cb = code.cb;
+        options = code;
+        code = options.program;
+    } else if (_.isFunction(options)) {
         cb = options;
         options = {};
     } else {
@@ -287,20 +169,23 @@ var runClass = exports.runClass = function(code, options, cb) {
     }
     options.name = options.name || code.match(/public\s+class\s+(\w+)/).pop();
     options.program = code;
+    options.cb = cb;
+
+    // === start queueing and run
+
+    queue.wait(options);
     // log("attempt to run code");
+    // queue.checkQueues();
     // if servlet is not ready run code from TerminalRunner
-    if (servletReady && !options.runInCMD) {
-        // log("ran code in server with port "+servletPort);
-        runInServlet(options, cb);
+    if (server.isReady() && queue.canRun()) {
+        queue.run();
     } else {
-        if (options.runInCMD) {
-            runCMD(options, cb);
+        if (!server.isReady()) {
+            log("checking up on server");
+            observer.emit("server.checkup");
         } else {
-        checkIfServletIsAlreadyRunning();
-            log("warning delaying execution while server is restarting");
-             _.delay(function() {
-                runClass(code, options, cb);
-            }, 1000);
+            log("hit queue limit waiting for other requests to finish");
+            // queue.checkQueues();
         }
     }
 };
@@ -333,7 +218,7 @@ var run = exports.run = function(code, options, cb) {
     }
     options.inputs = options.inputs || [];
 
-    var inp = options.inputs.length>0?options.inputs.join(";")+';':'';
+    var inp = options.inputs.length > 0 ? options.inputs.join(";") + ';' : '';
     var pre = (options.preCode || '').replace(/\/\/.*$/gm, '').replace(/\r?\n|\r/g, ' ');
     var name = options.name = classCase(options.name || "Main") + (options.debug_number || '');
 
@@ -342,7 +227,7 @@ var run = exports.run = function(code, options, cb) {
 
     var program = "";
     program += preClass;
-    program += "public class "+name+" {";
+    program += "public class " + name + " {";
     program += "  public static void main(String args[]) throws Exception {";
     program += "    " + code;
     // program += '  } catch (Exception e) {System.err.print("Exception line "+(e.getStackTrace()[0].getLineNumber())+" "+e);}}' +
@@ -362,21 +247,20 @@ var run = exports.run = function(code, options, cb) {
 var test = exports.test = function(code, test, options, cb) {
     if (_.isEmpty(code)) cb(new Error('code can not be undefined'));
     if (!test) cb(new Error('test can not be undefined'));
-    if(options.timeLimit && options.timeLimit<0) cb(new Error("TimeLimit can not be negative")); 
+    if (options.timeLimit && options.timeLimit < 0) cb(new Error("TimeLimit can not be negative"));
     if (!options.exp) cb(new Error('challange must have exp'));
-    var hash = _.random(0, 200000000);
-    options.runInCMD = options.runInCMD || !servletReady;
+    var hash = options.hash = _.random(0, 200000000);
     options.inputs = options.inputs || [];
 
-    var pre = ''+
+    var pre = '' +
         'final ByteArrayOutputStream $userOut = new ByteArrayOutputStream();\n' +
         'final ByteArrayOutputStream $userErr = new ByteArrayOutputStream();\n';
     var post = '';
     //capture sys streams and set uniq test hash
     // make sure to acomidate for both threaded and none
-    if(options.runInCMD) {
-         pre = pre +
-            'PrintStream _out = System.out;\n'+
+    if (options.runInCMD) {
+        pre = pre +
+            'PrintStream _out = System.out;\n' +
             'System.setOut(new PrintStream($userOut));\n' +
             'Test $test = new Test("' + hash + '", ' + JSON.stringify(code) + ');\n';
         post = '\n' +
@@ -385,9 +269,9 @@ var test = exports.test = function(code, test, options, cb) {
 
     } else {
         pre = pre +
-            'PrintStream _out = ((ThreadPrintStream)System.out).getThreadOut();'+
+            'PrintStream _out = ((ThreadPrintStream)System.out).getThreadOut();' +
             '((ThreadPrintStream)System.out).setThreadOut(new PrintStream($userOut));\n' +
-            'Test $test = new Test("' + hash + '", ' + JSON.stringify(code) + ');\n' ;
+            'Test $test = new Test("' + hash + '", ' + JSON.stringify(code) + ');\n';
         post = '\n' +
             '((ThreadPrintStream)System.out).setThreadOut(_out);\n' +
             'System.out.print($test.getTestOut().toString());\n';
@@ -396,9 +280,9 @@ var test = exports.test = function(code, test, options, cb) {
 
     var program = "";
     program += "import java.io.ByteArrayOutputStream;import java.io.PrintStream;";
-    program += "public class "+name+" {";
-    program += "  public static void $main("+ options.inputs.join(",")+") throws Exception {\n";
-    program += "    "+code;
+    program += "public class " + name + " {";
+    program += "  public static void $main(" + options.inputs.join(",") + ") throws Exception {\n";
+    program += "    " + code;
     program += "  \n}";
     program += "  public static void main(String args[]) throws Exception {";
     program += "    " + pre;
@@ -414,6 +298,8 @@ var test = exports.test = function(code, test, options, cb) {
     program += "  }";
     program += "}";
 
+    //  === run class
+
     runClass(program, options, function(err, stout, sterr) {
         if (err && !sterr) return cb(err);
         sterr && log(sterr);
@@ -425,7 +311,7 @@ var test = exports.test = function(code, test, options, cb) {
             failures: [],
             tests: []
         };
-        var reg = new RegExp("<\\[" + hash + "\\]>((?!<\\["+hash+"\\]>)[\\s\\S])+<\\[" + hash + "\\]>", "g");
+        var reg = new RegExp("<\\[" + hash + "\\]>((?!<\\[" + hash + "\\]>)[\\s\\S])+<\\[" + hash + "\\]>", "g");
         var tests = stout.match(reg) || [];
         if (!_.isEmpty(tests)) {
             tests = ('[' + tests.join(',') + ']');

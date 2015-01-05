@@ -1,178 +1,31 @@
 /*globals before,after,beforeEach,afterEach,describe,it */
 var runner = require('../index.js');
+var server = require('../node/server.js');
 var expect = require('chai').expect;
 var Promise = require('bluebird');
 var _ = require('lodash');
-var request = require('supertest');
-var http = require('http');
+
+require('./compile');
 
 
 describe('Java runner', function() {
 
-    var url;
-    var port;
-
-    describe('Java Server', function() {
-
-        it('shoudl compile', function (done) {
-            runner.recompile(function (compiled) {
-                expect(compiled).to.be.true;
-                done();
-            });
-        });
-
-        it('should start server', function (done) {
-            runner.runServer(3678, function(p) {
-                port = p;
-                url = 'http://localhost:' + p;
-                console.log('sending request to ' + url);
-                expect(p).to.equal(3678);
-                done();
-            });
-        });
-
-        it('should respond to GET request with 200', function(done) {
-            request(url)
-                .get("/")
-                .expect(200)
-                .end(done);
-        });
-
-        it('should run simple java HelloWorld program', function(done) {
-            request(url)
-                .post("/")
-                .set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-                .send({
-                    name: 'Main',
-                    code: 'public class Main {public static void main (String [] args) { System.out.print("Hello World");}}'
-                })
-                .end(function(err, res) {
-                    if (err) return done(err);
-                    expect(res.body.stout).to.equal('Hello World');
-                    done();
-                });
-        });
-
-        it('should run java programs with input stream given', function(done) {
-            var input = "InputStream";
-            request(url)
-                .post("/")
-                .set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-                .send({
-                    name: 'Main',
-                    code: 'import java.util.Scanner; public class Main {public static void main (String [] args) {Scanner sc = new Scanner(System.in); sc.nextLine();System.out.print(sc.nextLine());}}',
-                    input: "something to skip\n"+input
-                })
-                .end(function(err, res) {
-                    if (err) return done(err);
-                    expect(res.body.stout).to.equal(input);
-                    done();
-                });
-        });
-
-        it('should run multiple simple java prgrams concurently', function(done) {
-            this.timeout(20000);
-            Promise.map(new Array(10), function(x, i) {
-                return new Promise(function(resolve, reject) {
-                    // setTimeout(function() {
-                    request(url)
-                        .post("/")
-                        .set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-                        .send({
-                            name: 'Main' + i,
-                            code: 'public class Main' + i + ' {public static void main (String [] args) { System.out.print("Hello World' + i + '");}}'
-                        })
-                        .end(function(err, res) {
-                            if (err) return reject(err);
-                            expect(res.body.stout).to.equal('Hello World' + i);
-                            resolve(true);
-                        });
-                    // }, i * 40); //simulate trafic
-                });
-            }).then(function() {
-                done();
-            }).catch(done);
-        });
-        
-        it('should run multiple java while providing input concurently', function(done) {
-            this.timeout(20000);
-            Promise.map(new Array(10), function(x, i) {
-                return new Promise(function(resolve, reject) {
-                    // setTimeout(function() {
-                    var input = "InputStream"+i;
-                    request(url)
-                        .post("/")
-                        .set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-                        .send({
-                            name: 'Main' + i,
-                            code: 'import java.util.Scanner; public class Main'+i+' {public static void main (String [] args) {Scanner sc = new Scanner(System.in); System.out.print(sc.nextLine());}}',
-                            input: input
-                        })
-                        .end(function(err, res) {
-                            if (err) return reject(err);
-                            expect(res.body.stout).to.equal(input);
-                            resolve(true);
-                        });
-                    // }, i * 40); //simulate trafic
-                });
-            }).then(function() {
-                done();
-            }).catch(done);
-        });
-
-        it('should throw runtime error', function(done) {
-            var input = "InputStream";
-            request(url)
-                .post("/")
-                .set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-                .send({
-                    name: 'Main',
-                    code: 'public class Main {public static void main(String [] args) throws Exception  {int a = 0; int b = 20; int c = b/a;}}',
-                })
-                .end(function(err, res) {
-                    if (err) return done(err);
-                    expect(res.body.sterr).to.exist;
-                    done();
-                });
-        });
-
-        it('should throw error if no input stream given', function(done) {
-            var input = "InputStream";
-            request(url)
-                .post("/")
-                .set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-                .send({
-                    name: 'Main',
-                    code: 'import java.util.Scanner; public class Main {public static void main (String [] args) {Scanner sc = new Scanner(System.in); sc.nextLine();System.out.print(sc.nextLine());}}',
-                })
-                .end(function(err, res) {
-                    if (err) return done(err);
-                    expect(res.body.sterr).to.exist;
-                    done();
-                });
-        });
-
-        it('should have access to Test.java', function(done) {
-            request(url)
-                .post("/")
-                .set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-                .send({
-                    name: 'MainTest',
-                    code: 'public class MainTest {public static void main (String [] args) { System.out.print("Hello World"); Test t = new Test(); t.pass(); System.out.print(t.getTestOut().toString()); }}'
-                })
-                .end(function(err, res) {
-                    if (err) return done(err);
-                    expect(res.body.stout).to.contain('<[TestOut]>');
-                    done();
-                });
+    before(function (done) {
+        server.startServer(function () {
+            done();
         });
     });
 
+    after(function (done) {
+        server.stopServer(function () {
+            done();
+        });
+    });
     
     describe('index#runInClass', function () {
         it('should run a java class', function (done) {
-            runner.runClass('public class MainClass { public static void print() {System.out.println("Test");} public static void main(String[] args) {print();}}', {
-            }, function(err, stout, sterr) {
+            runner.runClass('public class MainClass { public static void print() {System.out.println("Test");} public static void main(String[] args) {print();}}', function(err, stout, sterr) {
+                console.log(err,stout, sterr);
                 if (err) {
                     return done(err);
                 }
@@ -182,20 +35,9 @@ describe('Java runner', function() {
         });
     });
 
-
     describe('index#run', function() {
         it('should run java', function(done) {
             runner.run('System.out.print("Hello");', function(err, stout, sterr) {
-                // stout && console.log(stout);
-                // sterr && console.error(sterr);
-                if (err) return done(err);
-                expect(stout).to.equal('Hello');
-                done();
-            });
-        });
-
-        it('should run java in bash', function(done) {
-            runner.run('System.out.print("Hello");', {runInCMD:true},function(err, stout, sterr) {
                 // stout && console.log(stout);
                 // sterr && console.error(sterr);
                 if (err) return done(err);
@@ -211,6 +53,7 @@ describe('Java runner', function() {
                 done();
             });
         });
+
         it('should output sterr for compile errors', function(done) {
             runner.run('system.out.print("Hello");', function(err, stout, sterr) {
                 // sterr && console.error(sterr);
@@ -307,6 +150,16 @@ describe('Java runner', function() {
                 done();
             });
         });
+        it('should run java in bash', function(done) {
+            runner.run('System.out.print("Hello");', {runInCMD:true},function(err, stout, sterr) {
+                // stout && console.log(stout);
+                // sterr && console.error(sterr);
+                if (err) return done(err);
+                expect(stout).to.equal('Hello');
+                done();
+            });
+        });
+
     });
 
     describe('index#test', function() {
@@ -496,6 +349,7 @@ describe('Java runner', function() {
                 name: 'TestMain',
                 exp: 1
             }, function(err, report, stout, sterr) {
+                // console.log(err, report, stout, sterr);
                 if (err) {
                     return done(err);
                 }
@@ -516,66 +370,6 @@ describe('Java runner', function() {
                 expect(sterr).to.equal("TimeoutException: Your program ran for more than 800ms");
                 done();
             });
-        });
-    });
-
-
-    describe('Server Restart', function () {
-        var code = 'char c =\'a\'; \n int a = 40, b = 20; System.out.print("a - b = " + (a - b));';
-        var test = '$main();\n$test.expect($userOut.toString(),"a - b = 20");';
-        it('should stop', function (done) {
-            runner.stopServer(function (stop) {
-                expect(stop).to.be.true;
-                done();
-            });
-        });
-        it('should start again', function (done) {
-            this.timeout(5000);
-            runner.runServer(function(p) {
-                expect(p).to.equal(3678);
-                done();
-            });
-        });
-
-        it('should not compile again in the same process', function (done) {
-            runner.recompile(function(compiled) {
-                expect(compiled).to.be.false;
-                done();
-            });
-        });
-
-        it('server should be running now', function (done) {
-            runner.run(code, function(err, stout, sterr) {
-                done();
-            });
-        });
-
-        it('should be able to handle runinng code while resarting server', function (done) {
-            this.timeout(20000);
-            var timer, i = 0;
-            timer = setInterval(function() {
-                i++;
-                runner.run(code, function(err, stout, sterr) {
-                    expect(stout).to.equal('a - b = 20');
-                });
-            }, 100); //simulate trafic
-            runner.test(code, test, {
-                name: 'TestMain',
-                exp: 1,
-                debug_number: i++
-            }, function(err, report, stout, sterr) {
-                expect(report.passed).to.be.true;
-                runner.stopServer(function (stoped) {
-                    runner.run(code, function(err, stout, sterr) {
-                        expect(stout).to.equal('a - b = 20');
-                        clearInterval(timer);
-                        _.delay(function () {
-                            done();
-                        }, i * 100);
-                    });
-                });
-            });
-
         });
     });
 });
