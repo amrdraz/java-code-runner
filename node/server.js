@@ -16,14 +16,19 @@ var compiled, compiling;
 
 var servletReady = false; // flag if server is ready to reseave post requests
 var startingServer = false; // flag if server is ready to reseave post requests
+var serverExit = false; // flag if server is ready to reseave post requests
 var servletPort;
 var servlet = null;
 
-var isReady = exports.isReady = function isReady () {
+
+var didExit = exports.didExit = function () {
+  return serverExit;  
+};
+var isReady = exports.isReady = function  () {
     return servletReady;
 };
 
-var isStarting = exports.isStarting = function isStarting () {
+var isStarting = exports.isStarting = function () {
     return startingServer;
 };
 
@@ -82,6 +87,11 @@ var recompile = exports.recompile = function recompile(cb) {
     }
 };
 
+function resetFlags () {
+    servlet = global._servlet = servletPort = global._servletPort = null;
+    servletReady = startingServer = false;
+    tryPort = defaultPort;
+}
 /**
  * Exposed method for stoping server
  * @param {Function|boolean} callback with parameter indicating success of stop, if force stop without possibility of restart
@@ -96,9 +106,7 @@ var stopServer = exports.stopServer = function (kill) {
     }
     if ((isStarting() || isReady() || kill) && servlet) {
         if (servlet) servlet.kill();
-        servlet = global._servlet = servletPort = global._servletPort = null;
-        servletReady = startingServer = false;
-        tryPort = defaultPort;
+        resetFlags();
         log("Stoped Server");
         observer.emit('server.stoped', kill);
         return cb(true);
@@ -109,8 +117,10 @@ var stopServer = exports.stopServer = function (kill) {
 
 var restartServer = exports.restartServer = function (cb) {
     log("Restarting server");
-    stopServer(function () {
-       startServlet(cb); 
+    serverExit = false;
+    stopServer(function (isRunning) {
+        log(isRunning +" couldn't stop ");
+        startServlet(cb); 
     });
 };
 
@@ -141,10 +151,18 @@ function startServlet(cb) {
             }
         });
 
-        servlet.on('exit', function(code) {
-            servletReady = false;
-            log('servlet exist with code ' + code);
-            observer.emit('server.exit');
+        servlet.on('close',function  (code, signal) {
+            resetFlags();
+            log("exited from close with arguments "+code+" "+signal);
+            observer.emit('server.close'. code);
+        });
+        servlet.on('exit', function(code, signal) {
+            resetFlags();
+            if(code===null || signal===null) {
+                serverExit = true;
+            }
+            log('servlet exist with code ' + code + 'signal '+signal);
+            observer.emit('server.exit'. code);
         });
         // make sure to close server after node process ends
         process.on('exit', function() {

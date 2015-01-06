@@ -105,8 +105,10 @@ observer.on("server.stoped", function(kill) {
         Queue.rollBack();
     }
 });
-observer.on("server.exit", function () {
-    if (waitingQueue.length>0) {
-        observer.emit("server.checkup");
+observer.on("server.exit", function (code) {
+    log("recived server exit in Queue " +code);
+    if (waitingQueue.length>0 || code===null) {
+        log("should restart");
+        observer.emit("server.restart");
     }
 });

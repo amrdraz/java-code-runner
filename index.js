@@ -15,6 +15,18 @@ var timeLimit = config.timeLimit;
 var runningLimit = runningLimit;
 var running = 0; // workaround to reduce event loop blocking when running in terminal
 
+
+exports.watchServer = function () {
+    server.startServer();
+
+    setInterval(function () {
+        // console.log("watching "+ server.didExit());
+        if(server.didExit()) {
+            server.restartServer();
+        }
+    },1000);
+};
+
 /**
  * Spawn a java process and return callback
  * @param  {Array}   args  arguments to pass to java proc
