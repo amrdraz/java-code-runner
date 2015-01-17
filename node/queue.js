@@ -26,13 +26,10 @@ var Queue = module.exports = {
         }
     },
     clearDone: function() {
-        while(runningQueue.length > 0 && runningQueue[0].isDone()) {
-            // log("removing from running");
-            runningQueue.shift();
-            // this.checkQueues();
-            // log("popped from running");
-            this.run();
-        }
+        _.remove(runningQueue,function (req) {
+            return req.isDone();
+        });
+        this.run();
     },
     getWaiting: function() {
         return waitingQueue;
@@ -68,6 +65,10 @@ var Queue = module.exports = {
             if(!req.isDone()) req.cb(new Error("Your request has been dropped due to server restart, Submit again"));
         }
     },
+    drop: function(req) {
+        _.pull(req.isWaiting()?waitingQueue:runningQueue,req);
+        // req.cb(new Error("Your request has been dropped due to an error, usually infinite loops, Submit again after checking that it's not you"));
+    },
     dropWaiting: function() {
         while (waitingQueue.length  > 0) {
             var req = waitingQueue.shift();
@@ -82,12 +83,8 @@ observer.on("runner.finished", function(req) {
     req.setToDone();
     Queue.clearDone();
 });
-observer.on("runner.post_error", function (req) {
-    if (req.isWaiting()) {
-        // log("pushed back req");
-        Queue.pushBack(req);
-        // Queue.checkQueues();
-    }
+observer.on("queue.drop", function (req) {
+    Queue.drop(req);
 });
 observer.on("server.running", function() {
     // log("Queue starts running again");

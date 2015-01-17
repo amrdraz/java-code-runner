@@ -1,3 +1,5 @@
+var observer = require('./observer');
+
 /**
  * A request to run
  */
@@ -5,6 +7,10 @@
 var Request = module.exports = function(request) {
     request._runner = {
         status: "waiting"
+    };
+    request.timeOut = function () {
+        observer.emit("queue.drop", request);
+        request.cb(null, "","TimeoutException: Your program ran for more than "+request.timeLimit+"ms");
     };
     request.isWaiting = function() {
         return this._runner.status === "waiting";

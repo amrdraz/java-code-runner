@@ -7,25 +7,28 @@ var _ = require('lodash');
 require('./compile');
 
 describe('Server Stressing', function() {
-    before(function (done) {
-        runner.server.startServer(function () {
+    before(function(done) {
+        this.timeout(5000);
+        // runner.server.killAllJava(function () {
+            runner.server.startServer(function() {
+                done();
+            });
+        // });
+    });
+
+    after(function(done) {
+        runner.server.stopServer(function() {
             done();
         });
     });
 
-    after(function (done) {
-        runner.server.stopServer(function () {
-            done();
-        });
-    });
-    
 
     var code = 'char c =\'a\'; \n int a = 40, b = 20; System.out.print("a - b = " + (a - b));';
     var test = '$main();\n$test.expect($userOut.toString(),"a - b = 20");';
 
     it('should run and queue anything above runLimit slowly dequeing when a slot is available concurently', function(done) {
         this.timeout(25000);
-        Promise.map(new Array(1000), function(x, i) {
+        Promise.map(new Array(1002), function(x, i) {
             return new Promise(function(resolve, reject) {
                 // setTimeout(function() {
                 var start = new Date().getTime();
@@ -36,7 +39,7 @@ describe('Server Stressing', function() {
                         // console.error(err + '\n==========================\n');
                         reject(err);
                     }
-                    // sterr && console.error(sterr);
+                    sterr && console.error(sterr);
                     expect(stout).to.equal('HelloWorld');
                     var end = new Date().getTime();
                     var time = end - start;
@@ -57,7 +60,7 @@ describe('Server Stressing', function() {
     });
 
     it('should be able to handle runinng code while resarting runner.server', function(done) {
-        this.timeout(20000);
+        this.timeout(25000);
         var timer, i = 0;
         timer = setInterval(function() {
             _.each(new Array(20), function() {
@@ -68,7 +71,7 @@ describe('Server Stressing', function() {
                     //expect(stout).to.equal('a - b = 20');
                 });
             }); 
-        }, 1000); //simulate trafic
+        }, 2000); //simulate trafic
         runner.test(code, test, {
             name: 'TestMain',
             exp: 1,
@@ -113,7 +116,7 @@ describe('Server Stressing', function() {
                         }
                         // finished++;
                         // sterr && console.error(sterr);
-                        expect(stout).to.equal('HelloWorld');
+                        // expect(stout).to.equal('HelloWorld');
                         var end = new Date().getTime();
                         var time = end - start;
                         // console.log('ran in ' + time + 'ms');
@@ -130,6 +133,46 @@ describe('Server Stressing', function() {
             console.log("maximum awiting time waited " + (times.reduce(function(max, t) {
                 return max < t ? t : max;
             }, 0)));
+            done();
+        }).catch(done);
+    });
+    // 
+    it('should manage some infinit loops', function(done) {
+        this.timeout(20000);
+        Promise.map(new Array(100), function(x, i) {
+            return new Promise(function(resolve, reject) {
+                // setTimeout(function() {
+                // var start = new Date().getTime();
+                runner.run('while(true);', {
+                    debug_number: i,
+                    timeLimit: 800
+                }, function(err, stout, sterr) {
+                    if (err) {
+                        // console.error(err + '\n==========================\n');
+                        reject(err);
+                    }
+                    // finished++;
+                    // sterr && console.error(sterr);
+
+                    // stout && console.log(stout);
+                    expect(sterr).to.equal("TimeoutException: Your program ran for more than 800ms");
+
+                    var end = new Date().getTime();
+                    // var time = end - start;
+                    // console.log('ran in ' + time + 'ms');
+                    // console.log("finished "+finished);
+                    resolve(800);
+                });
+                // }, i * 10); //simulate trafic
+            });
+        }).then(function(times) {
+            // clearInterval(timer);
+            // console.log("responded on average in " + (times.reduce(function(sum, t) {
+            //     return sum + t;
+            // }, 0) / times.length));
+            // console.log("maximum awiting time waited " + (times.reduce(function(max, t) {
+            //     return max < t ? t : max;
+            // }, 0)));
             done();
         }).catch(done);
     });

@@ -15,16 +15,37 @@ var timeLimit = config.timeLimit;
 var runningLimit = runningLimit;
 var running = 0; // workaround to reduce event loop blocking when running in terminal
 
+// insures that the server will keep running and if not will restart
+var watchServer = exports.watchServer = function() {
+    server.startServer(function () {
+        var isAlive = setInterval(function() {
+            // console.log("watching "+ server.didExit());
+            if (server.didExit()) {
+                server.restartServer();
+            }
+        }, 1000);
 
-exports.watchServer = function () {
-    server.startServer();
-
-    setInterval(function () {
-        // console.log("watching "+ server.didExit());
-        if(server.didExit()) {
-            server.restartServer();
-        }
-    },1000);
+        var isRunning = setInterval(function() {
+            var timeout = setTimeout(function () {
+                log("did not respond");
+                stopServer(function (stoped) {
+                    if(!stoped) {
+                        server.killAllJava(function () {
+                            clearInterval(isAlive);
+                            clearInterval(isRunning);
+                            watchServer();
+                        });
+                    } else {
+                        watchServer();
+                    }
+                });
+            }, 60000);
+            run("", function () {
+                log("simple test run");
+                clearTimeout(timeout);
+            });
+        }, 10000000);
+    });
 };
 
 /**
@@ -69,11 +90,11 @@ function runCMD(options, cb) {
     var args = ["-cp", ".", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "TerminalRunner"];
     args.push(options.name);
     args.push(options.program);
-    args.push(options.timeLimit || config.timeLimit);
-    args.push(options.input || '');
+    args.push(options.timeLimit);
+    args.push(options.input);
 
 
-    runProc(args, function () {
+    runProc(args, function() {
         observer.emit("runner.finished", options);
         cb.apply(this, arguments);
     });
@@ -93,13 +114,12 @@ function runInServlet(request, cb) {
     if (request.cb) {
         cb = request.cb;
     }
-    var timer;
     // program to run
     var post_data = querystring.stringify({
         'name': request.name,
         'code': request.program,
-        'input': request.input || '',
-        'timeLimit': request.timeLimit || config.timeLimit
+        'input': request.input,
+        'timeLimit': request.timeLimit
     });
     // An object of request to indicate where to post to
     var post_options = {
@@ -119,14 +139,22 @@ function runInServlet(request, cb) {
         var responseString = '';
 
         res.on('data', function(data) {
-            // clearTimeout(timer);
-            data = JSON.parse(data);
+            // clearTimeout(request.timer);
+            // log(data);
+            // debugger;
+            if (/An exception has occurred in the compiler/.test(data) || /RuntimeError: java.lang.ThreadDeath/.test(data)) {
+                // log("ReWrote the folwoing as timout exception "+data);
+                // queue.checkQueues();
+                request.timeOut();
+            } else {
+                data = JSON.parse(data);
+                request.setToDone();
+                observer.emit("runner.finished", request);
+                // queue.clearRunning();
+                // queue.checkQueues();
+                cb(null, data.stout, data.sterr);
+            }
             // log("finished with one");
-            request.setToDone();
-            observer.emit("runner.finished", request);
-            // queue.clearRunning();
-            // queue.checkQueues();
-            cb(null, data.stout, data.sterr);
         });
 
         // res.on('end', function() {
@@ -140,12 +168,12 @@ function runInServlet(request, cb) {
 
     post_req.on('error', function(e) {
         log("Error while waiting for server response ", e);
-        observer.emit("runner.post_error", request);
+        request.timeOut();
         // cb(e);
     });
-    // timer = setTimeout(function () {
-    //     cb(new Error("TimeoutException: Your program ran for more than "+timeLimit));
-    // },timeLimit);
+    // request.timer = setTimeout(function () {
+    //     cb(null, "","TimeoutException: Your program ran for more than "+timeLimit+"ms");
+    // },timeLimit+200);
     post_req.write(post_data);
     post_req.end();
 }
@@ -181,6 +209,8 @@ var runClass = exports.runClass = function(code, options, cb) {
     }
     options.name = options.name || code.match(/public\s+class\s+(\w+)/).pop();
     options.program = code;
+    options.timeLimit = options.timeLimit || config.timeLimit;
+    options.input = options.input || '';
     options.cb = cb;
 
     // === start queueing and run

@@ -8,6 +8,7 @@ describe('Java Server', function() {
     var port;
 
     it('should compile', function (done) {
+        this.timeout(5000);
         server.recompile(function (compiled) {
             expect(compiled).to.be.true;
             done();

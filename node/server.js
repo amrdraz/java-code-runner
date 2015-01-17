@@ -21,18 +21,18 @@ var servletPort;
 var servlet = null;
 
 
-var didExit = exports.didExit = function () {
-  return serverExit;  
+var didExit = exports.didExit = function() {
+    return serverExit;
 };
-var isReady = exports.isReady = function  () {
+var isReady = exports.isReady = function() {
     return servletReady;
 };
 
-var isStarting = exports.isStarting = function () {
+var isStarting = exports.isStarting = function() {
     return startingServer;
 };
 
-exports.getPort = function () {
+exports.getPort = function() {
     return servletPort;
 };
 
@@ -50,7 +50,7 @@ function findPort(cb) {
         server.close();
     });
     server.on('error', function(err) {
-        log("port "+tryPort+" is occupied");
+        log("port " + tryPort + " is occupied");
         findPort(cb);
     });
 }
@@ -64,22 +64,25 @@ function findPort(cb) {
 var recompile = exports.recompile = function recompile(cb) {
     var stoutBuffer = '',
         sterrBuffer = '';
-    if(!compiled) {
+    if (!compiled) {
         compiling = true;
-        var proc = cp.spawn('ant', {
-            cwd: config.rootDir
-        });
-        proc.stdout.on('data', function(data) {
-            stoutBuffer += data;
-        });
-        proc.stderr.on('data', function(data) {
-            sterrBuffer += data;
-        });
-        proc.on('close', function(code) {
-            compiling = false;
-            compiled =true;
-            observer.emit('server.compiled', compiled);
-            cb(compiled);
+        // can't have any server running while compiling
+        killAllJava(function() {
+            var proc = cp.spawn('ant', {
+                cwd: config.rootDir
+            });
+            proc.stdout.on('data', function(data) {
+                stoutBuffer += data;
+            });
+            proc.stderr.on('data', function(data) {
+                sterrBuffer += data;
+            });
+            proc.on('close', function(code) {
+                compiling = false;
+                compiled = true;
+                observer.emit('server.compiled', compiled);
+                cb(compiled);
+            });
         });
     } else {
         log("already compiled project in this process");
@@ -87,18 +90,18 @@ var recompile = exports.recompile = function recompile(cb) {
     }
 };
 
-function resetFlags () {
-    servlet = global._servlet = servletPort = global._servletPort = null;
-    servletReady = startingServer = false;
-    tryPort = defaultPort;
-}
-/**
- * Exposed method for stoping server
- * @param {Function|boolean} callback with parameter indicating success of stop, if force stop without possibility of restart
- * @return {[type]} [description]
- */
-var stopServer = exports.stopServer = function (kill) {
-    if(_.isFunction(kill)) {
+function resetFlags() {
+        servlet = global._servlet = servletPort = global._servletPort = null;
+        servletReady = startingServer = false;
+        tryPort = defaultPort;
+    }
+    /**
+     * Exposed method for stoping server
+     * @param {Function|boolean} callback with parameter indicating success of stop, if force stop without possibility of restart
+     * @return {[type]} [description]
+     */
+var stopServer = exports.stopServer = function(kill) {
+    if (_.isFunction(kill)) {
         cb = kill;
         kill = true;
     } else {
@@ -106,21 +109,31 @@ var stopServer = exports.stopServer = function (kill) {
     }
     if ((isStarting() || isReady() || kill) && servlet) {
         if (servlet) servlet.kill();
+        servlet.on('exit',function () {
+            cb(true);
+        });
         resetFlags();
         log("Stoped Server");
         observer.emit('server.stoped', kill);
-        return cb(true);
+        return;
     }
     log("No Process to stop");
     cb(false);
 };
 
-var restartServer = exports.restartServer = function (cb) {
+var killAllJava = exports.killAllJava = function(cb) {
+    cp.exec('killall java', function() {
+        log("killed all java");
+        cb();
+    });
+};
+
+var restartServer = exports.restartServer = function(cb) {
     log("Restarting server");
     serverExit = false;
-    stopServer(function (isRunning) {
-        log(isRunning +" couldn't stop ");
-        startServlet(cb); 
+    stopServer(function(isRunning) {
+        log(isRunning + " couldn't stop ");
+        startServlet(cb);
     });
 };
 
@@ -131,6 +144,7 @@ var restartServer = exports.restartServer = function (cb) {
 function startServlet(cb) {
     startingServer = true;
     servletReady = false;
+        debugger;
     findPort(function(port) {
         servletPort = global._servletPort = '' + port;
 
@@ -147,22 +161,18 @@ function startServlet(cb) {
                 startingServer = false;
                 // queue.checkQueues();
                 observer.emit("server.running", port);
-                if(cb) cb(port);
+                if (cb) cb(port);
             }
         });
 
-        servlet.on('close',function  (code, signal) {
-            resetFlags();
-            log("exited from close with arguments "+code+" "+signal);
-            observer.emit('server.close'. code);
-        });
+        
         servlet.on('exit', function(code, signal) {
             resetFlags();
-            if(code===null || signal===null) {
+            if (code === null || signal === null) {
                 serverExit = true;
             }
-            log('servlet exist with code ' + code + 'signal '+signal);
-            observer.emit('server.exit'. code);
+            log('servlet exist with code ' + code + 'signal ' + signal);
+            observer.emit('server.exit',code);
         });
         // make sure to close server after node process ends
         process.on('exit', function() {
@@ -185,7 +195,7 @@ var checkIfServletIsAlreadyRunning = exports.startServer = function(port, cb) {
         port = defaultPort;
     }
 
-    log("checking if server is running on port "+port);
+    log("checking if server is running on port " + port);
     http.get("http://localhost:" + port + "/", function(res) {
         log("got response");
         if (res.statusCode === 200) {
@@ -195,33 +205,35 @@ var checkIfServletIsAlreadyRunning = exports.startServer = function(port, cb) {
             startingServer = false;
             // queue.checkQueues();
             observer.emit("server.running", port);
-            if(cb) cb(port);
+            if (cb) cb(port);
         } else {
             log("there is a server running for I got a different status code ");
             log(res);
         }
     }).on('error', function(e) {
         log("recived an error when checking");
-        if (!isStarting()) {
-            if(servletPort) {
-                log("it is not but port is defined as "+ servletPort);
-                log("We'll try restarting");
-                return restartServer();
-            }
-            log("there doesn't seem to be a server that's starting, staring our own");
-            startServlet(cb);
+        if (compiling) {
+            log("server is compiling, waiting till it's done");
         } else {
-            log("server has not started yet waiting till it does...");
+            if (!isStarting()) {
+                if (servletPort) {
+                    log("it is not but port is defined as " + servletPort);
+                    log("We'll try restarting");
+                    return restartServer();
+                }
+                log("there doesn't seem to be a server that's starting, staring our own");
+                startServlet(cb);
+            } else {
+                log("server has not started yet waiting till it does...");
+            }
         }
     });
 };
 
-observer.on("server.restart", function () {
-   restartServer();
+observer.on("server.restart", function() {
+    restartServer();
 });
 
-observer.on("server.checkup", function (port) {
+observer.on("server.checkup", function(port) {
     checkIfServletIsAlreadyRunning(port);
 });
-
-

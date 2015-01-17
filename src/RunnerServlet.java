@@ -91,71 +91,80 @@ class ServletRoute extends HttpServlet
     @SuppressWarnings("deprecation")
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
     {
-        String code = request.getParameter("code");
-        String name = request.getParameter("name");
-        long timeLimit = 5000;
-        if(request.getParameter("timeLimit")!=null) {
-          timeLimit = Integer.parseInt(request.getParameter("timeLimit"));
-        }
-        final String input;
-        if(request.getParameter("input")==null) {
-          input = "";
-        } else {
-          input = request.getParameter("input");
-        }
+      String code = request.getParameter("code");
+      String name = request.getParameter("name");
+      long timeLimit = 5000;
+      if(request.getParameter("timeLimit")!=null) {
+        timeLimit = Integer.parseInt(request.getParameter("timeLimit"));
+      }
+      final String input;
+      if(request.getParameter("input")==null) {
+        input = "";
+      } else {
+        input = request.getParameter("input");
+      }
 
-        // print(input);
+      // print(input);
 
-        // out.println(":--------Recived POST for "+name+"-------:");
-        // out.println(code);
-        // out.println("-----------------------------------------");
+      // out.println(":--------Recived POST for "+name+"-------:");
+      // out.println(code);
+      // out.println("-----------------------------------------");
 
-        response.setContentType("application/json");
-        response.setStatus(HttpServletResponse.SC_OK);
+      response.setContentType("application/json");
+      response.setStatus(HttpServletResponse.SC_OK);
 
-        // response map
-        Map<String,String> res = new HashMap<String,String>();
+      // response map
+      Map<String,String> res = new HashMap<String,String>();
+      
+      Thread thread = new Thread(new Runnable() {
+       public void run() {
+          ByteArrayInputStream runnerIn =  new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));;
+          ByteArrayOutputStream runnerOut = new ByteArrayOutputStream();
+          ByteArrayOutputStream runnerErr = new ByteArrayOutputStream();
 
-        Thread thread = new Thread(new Runnable() {
-         public void run() {
-            ByteArrayInputStream runnerIn =  new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));;
-            ByteArrayOutputStream runnerOut = new ByteArrayOutputStream();
-            ByteArrayOutputStream runnerErr = new ByteArrayOutputStream();
+          ((ThreadInputStream)System.in).setThreadIn(runnerIn);
+          ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(runnerOut));
+          ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(runnerErr));
 
-            ((ThreadInputStream)System.in).setThreadIn(runnerIn);
-            ((ThreadPrintStream)System.out).setThreadOut(new PrintStream(runnerOut));
-            ((ThreadPrintStream)System.err).setThreadOut(new PrintStream(runnerErr));
+          JavaRunner.compile(name,code);
 
-            JavaRunner.compile(name,code);
+          ((ThreadInputStream)System.in).setThreadIn(in);
+          ((ThreadPrintStream)System.out).setThreadOut(out);
+          ((ThreadPrintStream)System.err).setThreadOut(err);
 
-            ((ThreadInputStream)System.in).setThreadIn(in);
-            ((ThreadPrintStream)System.out).setThreadOut(out);
-            ((ThreadPrintStream)System.err).setThreadOut(err);
-
-            try {
-              res.put("stout", runnerOut.toString());
-              res.put("sterr", runnerErr.toString());
-              response.getWriter().print(JSON.toString(res));
-            } catch (Exception  e) {
-              e.printStackTrace();
-            }
-
-          }
-        });
-        thread.start();
-        try {
-          thread.join(timeLimit);
-          if (thread.isAlive()) {
-            thread.stop();
-            ((ThreadInputStream)System.in).setThreadIn(in);
-            ((ThreadPrintStream)System.out).setThreadOut(out);
-            ((ThreadPrintStream)System.err).setThreadOut(err);
-            res.put("stout", "");
-            res.put("sterr", "TimeoutException: Your program ran for more than "+timeLimit+"ms");
+          try {
+            res.put("stout", runnerOut.toString());
+            res.put("sterr", runnerErr.toString());
             response.getWriter().print(JSON.toString(res));
+          } catch (Exception  e) {
+            e.printStackTrace();
+          } finally {
+            return;
           }
-        } catch (InterruptedException e) {
-          e.printStackTrace();
+
         }
+      });
+      thread.start();
+      try {
+        thread.join(timeLimit);
+        if (thread.isAlive()) {
+          thread.stop();
+          ((ThreadInputStream)System.in).setThreadIn(in);
+          ((ThreadPrintStream)System.out).setThreadOut(out);
+          ((ThreadPrintStream)System.err).setThreadOut(err);
+          res.put("stout", "");
+          res.put("sterr", "TimeoutException: Your program ran for more than "+timeLimit+"ms");
+          response.getWriter().print(JSON.toString(res));
+        }
+      } catch (Exception e) {
+        ((ThreadInputStream)System.in).setThreadIn(in);
+        ((ThreadPrintStream)System.out).setThreadOut(out);
+        ((ThreadPrintStream)System.err).setThreadOut(err);
+
+        res.put("stout", "");
+        res.put("sterr", "TimeoutException: Your program ran for more than "+timeLimit+"ms");
+        response.getWriter().print(JSON.toString(res));
+        // e.printStackTrace();
+      }
     }
 }

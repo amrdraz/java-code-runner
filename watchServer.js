@@ -1,11 +1,3 @@
-var observer = require("./node/observer");
-var server = require("./node/server");
+var runner = require("./index");
 
-server.startServer();
-
-setInterval(function () {
-    // console.log("watching "+ server.didExit());
-    if(server.didExit()) {
-        server.restartServer();
-    }
-},1000);
+runner.watchServer();
